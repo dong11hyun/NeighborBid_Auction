@@ -1,0 +1,50 @@
+{% extends 'auctions/base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6">
+        {% if auction.image %}
+            <img src="{{ auction.image.url }}" class="img-fluid rounded" alt="{{ auction.title }}">
+        {% else %}
+            <div class="bg-secondary text-white p-5 text-center rounded">이미지 없음</div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-6">
+        <h2>{{ auction.title }}</h2>
+        <p class="text-muted">판매자: {{ auction.seller.username }} | 마감: {{ auction.end_time }}</p>
+        <hr>
+        <p>{{ auction.description }}</p>
+        
+        <div class="card bg-light mt-4">
+            <div class="card-body">
+                <h3 class="text-center mb-4">현재가: <span class="text-danger">{{ auction.current_price }}원</span></h3>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="input-group mb-3">
+                        <span class="input-group-text">입찰금액</span>
+                        <input type="number" name="amount" class="form-control" 
+                               value="{{ auction.current_price|add:auction.bid_unit }}" 
+                               min="{{ auction.current_price|add:auction.bid_unit }}">
+                        <button class="btn btn-danger" type="submit">입찰하기 🔨</button>
+                    </div>
+                    <p class="text-muted small text-center">* 최소 입찰 단위: {{ auction.bid_unit }}원</p>
+                </form>
+            </div>
+        </div>
+
+        <h4 class="mt-5">📋 입찰 기록</h4>
+        <ul class="list-group">
+            {% for bid in auction.bids.all|dictsortreversed:"amount" %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ bid.bidder.username }}
+                    <span class="badge bg-secondary rounded-pill">{{ bid.amount }}원</span>
+                </li>
+            {% empty %}
+                <li class="list-group-item">아직 입찰이 없습니다. 1등을 노려보세요!</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}

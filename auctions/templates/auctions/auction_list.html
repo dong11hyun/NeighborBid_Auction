@@ -1,0 +1,29 @@
+{% extends 'auctions/base.html' %}
+
+{% block content %}
+<h2>🔥 진행중인 경매</h2>
+<div class="row mt-4">
+    {% for auction in auctions %}
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            {% if auction.image %}
+                <img src="{{ auction.image.url }}" class="card-img-top" alt="{{ auction.title }}" style="height: 200px; object-fit: cover;">
+            {% else %}
+                <div class="bg-secondary text-white d-flex align-items-center justify-content-center" style="height: 200px;">이미지 없음</div>
+            {% endif %}
+            <div class="card-body">
+                <h5 class="card-title">{{ auction.title }}</h5>
+                <p class="card-text text-muted">{{ auction.description|truncatechars:50 }}</p>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="badge bg-primary">{{ auction.get_status_display }}</span>
+                    <strong class="text-danger">현재가: {{ auction.current_price }}원</strong>
+                </div>
+            </div>
+            <div class="card-footer">
+                <a href="{% url 'auction_detail' auction.id %}" class="btn btn-primary w-100">입찰하러 가기</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

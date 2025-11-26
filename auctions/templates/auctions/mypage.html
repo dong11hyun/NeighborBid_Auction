@@ -1,0 +1,66 @@
+{% extends 'auctions/base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h5 class="my-0">💰 내 지갑</h5>
+            </div>
+            <div class="card-body text-center">
+                <h3 class="card-title">{{ wallet.balance }}원</h3>
+                <p class="text-muted small">잠긴 금액(입찰중): {{ wallet.locked_balance }}원</p>
+                <hr>
+                <form action="{% url 'charge_wallet' %}" method="post">
+                    {% csrf_token %}
+                    <div class="input-group">
+                        <select class="form-select" name="amount">
+                            <option value="10000">10,000원</option>
+                            <option value="50000">50,000원</option>
+                            <option value="100000">100,000원</option>
+                        </select>
+                        <button class="btn btn-outline-success" type="submit">충전</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <h4 class="mb-3">✋ 내가 입찰한 경매</h4>
+        <div class="list-group mb-5">
+            {% for bid in my_bids %}
+            <a href="{% url 'auction_detail' bid.auction.id %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>{{ bid.auction.title }}</strong>
+                    <br>
+                    <small class="text-muted">{{ bid.created_at|date:"Y-m-d H:i" }} 입찰</small>
+                </div>
+                <div class="text-end">
+                    <span class="badge bg-primary rounded-pill">{{ bid.amount }}원</span>
+                    {% if bid.amount == bid.auction.current_price %}
+                        <span class="badge bg-danger">현재 최고가! 🔥</span>
+                    {% else %}
+                        <span class="badge bg-secondary">밀림 😭</span>
+                    {% endif %}
+                </div>
+            </a>
+            {% empty %}
+                <div class="alert alert-secondary">아직 입찰한 내역이 없습니다.</div>
+            {% endfor %}
+        </div>
+
+        <h4 class="mb-3">📢 내가 올린 물건</h4>
+        <ul class="list-group">
+            {% for auction in my_auctions %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                {{ auction.title }}
+                <span class="badge bg-dark">{{ auction.get_status_display }}</span>
+            </li>
+            {% empty %}
+                <li class="list-group-item">판매 중인 물건이 없습니다.</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}
