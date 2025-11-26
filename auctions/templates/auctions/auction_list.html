@@ -2,6 +2,22 @@
 
 {% block content %}
 <h2>🔥 진행중인 경매</h2>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        {% if request.GET.q %}
+            <span class="text-muted">"{{ request.GET.q }}" 검색 결과</span>
+            <a href="{% url 'auction_list' %}" class="btn btn-sm btn-outline-secondary ms-2">전체보기</a>
+        {% endif %}
+    </div>
+    <div class="btn-group">
+        <a href="?sort=recent&q={{ request.GET.q }}" class="btn btn-sm btn-outline-dark {% if sort == 'recent' %}active{% endif %}">최신순</a>
+        <a href="?sort=end_soon&q={{ request.GET.q }}" class="btn btn-sm btn-outline-dark {% if sort == 'end_soon' %}active{% endif %}">마감 임박순</a>
+        <a href="?sort=price_asc&q={{ request.GET.q }}" class="btn btn-sm btn-outline-dark {% if sort == 'price_asc' %}active{% endif %}">가격 낮은순</a>
+        <a href="?sort=price_desc&q={{ request.GET.q }}" class="btn btn-sm btn-outline-dark {% if sort == 'price_desc' %}active{% endif %}">가격 높은순</a>
+    </div>
+</div>
+<div class="row mt-4">
+    
 <div class="row mt-4">
     {% for auction in auctions %}
     <div class="col-md-4 mb-4">

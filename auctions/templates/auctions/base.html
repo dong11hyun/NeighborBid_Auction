@@ -9,11 +9,16 @@
     <nav class="navbar navbar-dark bg-dark mb-4">
         <div class="container">
             <a class="navbar-brand" href="/">🏆 A1 Auction</a>
+
+            <form class="d-flex mx-auto" action="{% url 'auction_list' %}" method="get" style="width: 40%;">
+                <input class="form-control me-2" type="search" name="q" placeholder="상품명 검색..." aria-label="Search" value="{{ request.GET.q }}">
+                <button class="btn btn-outline-light" type="submit">🔍</button>
+            </form>
             <div class="d-flex text-white">
                 {% if user.is_authenticated %}
                     <span class="me-3">👤 {{ user.username }} (신용도: {{ user.reputation_score }})</span>
                     <span class="me-3">💰 {{ user.wallet.balance }}원</span>
-                    
+
                     <a href="{% url 'auction_create' %}" class="btn btn-sm btn-warning fw-bold me-2">+ 경매 등록</a>
                     <a href="{% url 'mypage' %}" class="btn btn-sm btn-light me-2">마이페이지</a>
                     <a href="/admin/logout/" class="btn btn-sm btn-outline-light">로그아웃</a>
