@@ -21,9 +21,14 @@
 
                     <a href="{% url 'auction_create' %}" class="btn btn-sm btn-warning fw-bold me-2">+ 경매 등록</a>
                     <a href="{% url 'mypage' %}" class="btn btn-sm btn-light me-2">마이페이지</a>
-                    <a href="/admin/logout/" class="btn btn-sm btn-outline-light">로그아웃</a>
+                    
+                    <form action="{% url 'logout' %}" method="post" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-light">로그아웃</button>
+                    </form>
                 {% else %}
-                    <a href="/admin/login/" class="btn btn-sm btn-outline-light">로그인</a>
+                    <a href="{% url 'login' %}" class="btn btn-sm btn-outline-light me-2">로그인</a>
+                    <a href="{% url 'signup' %}" class="btn btn-sm btn-warning">회원가입</a>
                 {% endif %}
             </div>
         </div>

@@ -129,3 +129,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # config/settings.py 맨 아래에 추가
 
 AUTH_USER_MODEL = 'users.User'
+
+# config/settings.py 맨 아래 추가
+
+# 로그인/로그아웃 성공 후 이동할 주소 (메인 페이지)
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'
