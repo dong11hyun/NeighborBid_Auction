@@ -59,4 +59,15 @@
  보증금 예치: 경매 올릴 때 보증금을 걸고, 취소 시 차감하는 정책.
  어뷰징 탐지: 이상한 패턴의 입찰이나 자전거래 감시.
 
- 
+ # 프로젝트 폴더 안에서
+python -m venv venv
+
+# 윈도우 기준 활성화
+venv\Scripts\activate
+# (맥/리눅스는 source venv/bin/activate)
+# requirements.txt에 적힌 대로 설치
+pip install -r requirements.txt
+# 우리가 만든 설계도(migrations 파일)를 보고 DB 생성
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py runserver
