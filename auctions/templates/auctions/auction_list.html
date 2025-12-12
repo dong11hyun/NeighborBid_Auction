@@ -32,7 +32,14 @@
                 <p class="card-text text-muted">{{ auction.description|truncatechars:50 }}</p>
                 <div class="d-flex justify-content-between align-items-center">
                     <span class="badge bg-primary">{{ auction.get_status_display }}</span>
-                    <strong class="text-danger">현재가: {{ auction.current_price }}원</strong>
+                    <strong class="text-danger">
+                        현재가: 
+                        {% if auction.current_price > 0 %}
+                            {{ auction.current_price }}
+                        {% else %}
+                            {{ auction.start_price }}
+                        {% endif %}원
+                    </strong>
                 </div>
             </div>
             <div class="card-footer">

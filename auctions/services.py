@@ -58,9 +58,7 @@ def place_bid(auction_id, user, amount):
         wallet = Wallet.objects.select_for_update().get(user=user)
         if wallet.balance < amount:
             raise ValueError("잔액이 부족합니다.")
-
         
-
         # 3. 내 돈 잠그기 (지갑에서 차감 -> 잠금으로 이동)
         wallet.balance -= amount
         wallet.locked_balance += amount
