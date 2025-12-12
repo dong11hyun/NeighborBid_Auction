@@ -44,6 +44,11 @@ def auction_detail(request, auction_id):
     
     # 입찰 버튼을 눌렀을 때 (POST 요청)
     if request.method == 'POST':
+        # 수정 3 판매자가 입찰 시 본인 물건 낙찰 방지 -> 판매자 입찰 불가능하게 막음
+        if request.user == auction.seller:
+            messages.error(request, "판매자는 본인의 경매에 입찰할 수 없습니다.")
+            return redirect('auction_detail', auction_id=auction.id)
+        
         amount = int(request.POST.get('amount'))
         try:
             # 우리가 만든 핵심 로직 호출!

@@ -154,6 +154,9 @@ def buy_now(auction_id, buyer):
         # 1. 기본 체크
         if auction.status != 'ACTIVE':
             raise ValueError("진행 중인 경매가 아닙니다.")
+        # 수정 사항 경매(입찰)가 시작되면 즉시 구매 불가능
+        #if auction.bids.exists():
+            #raise ValueError("이미 입찰이 진행된 경매는 즉시 구매가 불가능합니다.")
         if not auction.instant_price:
             raise ValueError("즉시 구매가 불가능한 상품입니다.")
         if buyer == auction.seller:
