@@ -30,11 +30,6 @@ def place_bid(auction_id, user, amount):
         if amount < min_bid_price:
             raise ValueError(f"최소 {min_bid_price}원 이상 입찰해야 합니다.")
 
-        # 입찰자의 지갑 확인
-        wallet = Wallet.objects.select_for_update().get(user=user)
-        if wallet.balance < amount:
-            raise ValueError("잔액이 부족합니다.")
-
         # ============================================
         # 여기서부터 진짜 돈 처리 (가장 중요!)
         # ============================================
@@ -57,8 +52,13 @@ def place_bid(auction_id, user, amount):
                     amount=last_bid.amount,
                     transaction_type='BID_REFUND',
                     description=f"경매({auction.title}) 상위 입찰 발생으로 환불"
-                )
+                )    
 
+        # 입찰자의 지갑 확인
+        wallet = Wallet.objects.select_for_update().get(user=user)
+        if wallet.balance < amount:
+            raise ValueError("잔액이 부족합니다.")
+        
         # 3. 내 돈 잠그기 (지갑에서 차감 -> 잠금으로 이동)
         wallet.balance -= amount
         wallet.locked_balance += amount
@@ -146,73 +146,81 @@ def determine_winner(auction_id):
 
 def buy_now(auction_id, buyer):
     """
-    즉시 구매 처리 함수
+    즉시 구매 함수 (수정버전)
+    논리 순서:
+    1. 구매자의 자금력 확인 (지갑 잔액 + 만약 내가 입찰자라면 묶인 돈까지 포함)
+    2. 자금이 충분할 경우에만 -> 기존 입찰 환불 및 결제 진행
     """
     with transaction.atomic():
+        # 1. 경매 정보 가져오기 (Lock)
         auction = Auction.objects.select_for_update().get(id=auction_id)
         
-        # 1. 기본 체크
         if auction.status != 'ACTIVE':
             raise ValueError("진행 중인 경매가 아닙니다.")
         if not auction.instant_price:
             raise ValueError("즉시 구매가 불가능한 상품입니다.")
         if buyer == auction.seller:
-            raise ValueError("판매자는 자신의 물건을 즉시 구매할 수 없습니다.")
-            
-        # 2. 구매자 지갑 확인
+            raise ValueError("판매자는 자신의 물건을 구매할 수 없습니다.")
+        
+        # 2. 구매자 지갑 가져오기
         buyer_wallet = Wallet.objects.select_for_update().get(user=buyer)
-        if buyer_wallet.balance < auction.instant_price:
-            raise ValueError("잔액이 부족합니다.")
+        
+        # 3. 현재 1등 입찰자 확인
+        current_highest_bid = auction.bids.order_by('-amount').first()
+        
+        # ==========================================================
+        # [핵심 수정] 자금력 선(先) 검증 로직
+        # ==========================================================
+        # 내가 가진 '가용 자금'을 계산합니다.
+        available_funds = buyer_wallet.balance
+        
+        # 만약 내가 현재 1등 입찰자라면, 묶여있는 돈도 내 돈이므로 가용 자금에 포함시킵니다.
+        if current_highest_bid and current_highest_bid.bidder == buyer:
+            available_funds += current_highest_bid.amount
 
-        # ============================================
-        # 3. 기존 입찰자들 환불 처리 (중요!)
-        # ============================================
-        # 즉시 구매가 일어나면 기존 1등은 낙찰 실패이므로 돈을 돌려받아야 함
-        last_bid = auction.bids.order_by('-amount').first()
-        if last_bid:
-            prev_bidder_wallet = Wallet.objects.select_for_update().get(user=last_bid.bidder)
-            prev_bidder_wallet.locked_balance -= last_bid.amount
-            prev_bidder_wallet.balance += last_bid.amount
-            prev_bidder_wallet.save()
+        # 자금이 부족하면 아예 여기서 멈춥니다. (환불도 안 일어남)
+        if available_funds < auction.instant_price:
+            raise ValueError(f"잔액이 부족합니다. (필요: {auction.instant_price}원, 보유(입찰금포함): {available_funds}원)")
+
+
+        # ==========================================================
+        # [실행 로직] 검증 통과 후 -> 환불 및 결제 일괄 처리
+        # ==========================================================
+        
+        # 4. 기존 입찰자 환불 (내 돈이든 남의 돈이든 일단 풀어줌)
+        if current_highest_bid:
+            prev_wallet = Wallet.objects.select_for_update().get(user=current_highest_bid.bidder)
+            
+            prev_wallet.locked_balance -= current_highest_bid.amount
+            prev_wallet.balance += current_highest_bid.amount
+            prev_wallet.save()
             
             Transaction.objects.create(
-                wallet=prev_bidder_wallet,
-                amount=last_bid.amount,
+                wallet=prev_wallet,
+                amount=current_highest_bid.amount,
                 transaction_type='BID_REFUND',
-                description=f"경매({auction.title}) 즉시 구매 발생으로 환불"
+                description=f"경매({auction.title}) 즉시 구매로 인한 입찰금 반환"
             )
 
-        # ============================================
-        # 4. 즉시 구매 결제 및 정산 (구매자 -> 판매자)
-        # ============================================
-        seller_wallet = Wallet.objects.select_for_update().get(user=auction.seller)
-
-        # 구매자 돈 차감
+        # 5. 구매자 결제 (환불 후 잔액에서 차감)
+        # 만약 buyer == current_highest_bidder였다면, 위 4번 과정에서 balance가 늘어났으므로 안전하게 차감됨.
+        
+        # (주의: prev_wallet과 buyer_wallet이 같은 객체일 수 있으므로 다시 불러오거나 refresh)
+        buyer_wallet.refresh_from_db() 
+        
         buyer_wallet.balance -= auction.instant_price
         buyer_wallet.save()
 
-        # 판매자 돈 입금
+        seller_wallet = Wallet.objects.select_for_update().get(user=auction.seller)
         seller_wallet.balance += auction.instant_price
         seller_wallet.save()
 
-        # 거래 기록
-        Transaction.objects.create(
-            wallet=buyer_wallet,
-            amount=-auction.instant_price,
-            transaction_type='PAYMENT',
-            description=f"즉시 구매 결제 ({auction.title})"
-        )
-        Transaction.objects.create(
-            wallet=seller_wallet,
-            amount=auction.instant_price,
-            transaction_type='EARNING',
-            description=f"즉시 구매 판매 수익 ({auction.title})"
-        )
+        # 6. 거래 기록 및 종료 처리
+        Transaction.objects.create(wallet=buyer_wallet, amount=-auction.instant_price, transaction_type='PAYMENT', description=f"즉시 구매 결제 ({auction.title})")
+        Transaction.objects.create(wallet=seller_wallet, amount=auction.instant_price, transaction_type='EARNING', description=f"즉시 구매 판매 수익 ({auction.title})")
 
-        # 5. 경매 종료 처리
-        # 즉시 구매는 입찰 기록 대신 낙찰 기록으로 남길 수도 있지만, 
-        # 여기서는 편의상 최종 가격을 업데이트하고 종료합니다.
         auction.current_price = auction.instant_price
+        auction.winner = buyer
         auction.status = 'ENDED'
         auction.save()
 

@@ -69,7 +69,25 @@
 
         <div class="card bg-light mt-4">
             <div class="card-body">
-                <h3 class="text-center mb-4">현재가: <span class="text-danger">{{ auction.current_price }}원</span></h3>
+                <div class="d-flex justify-content-center align-items-center mb-4">
+                    <div class="text-center me-5">
+                        <span class="text-muted small">시작가</span>
+                        <h3 class="text-secondary">{{ auction.start_price }}원</h3>
+                    </div>
+
+                    <div style="border-left: 1px solid #ccc; height: 40px;"></div>
+
+                    <div class="text-center ms-5">
+                        <span class="text-danger small fw-bold">현재가</span>
+                        <h3 class="text-danger">
+                            {% if auction.current_price > 0 %}
+                                {{ auction.current_price }}
+                            {% else %}
+                                {{ auction.start_price }}
+                            {% endif %}원
+                        </h3>
+                    </div>
+                </div>
                 
                 <form method="post">
                     {% csrf_token %}
