@@ -39,6 +39,22 @@ class Auction(models.Model):
     
     # [추가] 카테고리
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True)
+    # [추가] 상품 상태 (새상품, 중고 등)
+    CONDITION_CHOICES = [
+        ('NEW', '새 상품'),
+        ('USED_S', 'S급 (미사용)'),
+        ('USED_A', 'A급 (사용감 적음)'),
+        ('USED_B', 'B급 (보통)'),
+        ('USED_C', 'C급 (하자 있음)'),
+    ]
+    condition = models.CharField(max_length=10, choices=CONDITION_CHOICES, default='USED_A')
+
+    # [추가] 배송비 부담
+    SHIPPING_CHOICES = [
+        ('SELLER', '판매자 부담 (무료배송)'),
+        ('BUYER', '구매자 부담 (착불)'),
+    ]
+    shipping_payer = models.CharField(max_length=10, choices=SHIPPING_CHOICES, default='BUYER')
 
     def __str__(self):
         return f"[{self.status}] {self.title}"

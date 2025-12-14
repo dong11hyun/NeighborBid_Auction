@@ -97,6 +97,14 @@ def auction_list(request):
 def auction_detail(request, auction_id):
     auction = get_object_or_404(Auction, id=auction_id)
     
+    # [추가] 이 판매자가 올린 '다른' 경매 물품들 (최신순 4개)
+    other_items = Auction.objects.filter(seller=auction.seller, status='ACTIVE').exclude(id=auction_id).order_by('-created_at')[:4]
+
+    context = {
+        'auction': auction,
+        'other_items': other_items, # 템플릿으로 전달
+    }
+    
     # 입찰 버튼을 눌렀을 때 (POST 요청)
     if request.method == 'POST':
         # 수정 3 판매자가 입찰 시 본인 물건 낙찰 방지 -> 판매자 입찰 불가능하게 막음
