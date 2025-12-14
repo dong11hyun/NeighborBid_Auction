@@ -3,34 +3,37 @@
 from django import forms
 from .models import Auction, Comment
 
+# auctions/forms.py
+
 class AuctionForm(forms.ModelForm):
     class Meta:
         model = Auction
-        # 사용자가 직접 입력해야 하는 필드만 골라줍니다.
-        # (판매자, 현재가, 상태 등은 시스템이 알아서 채웁니다)
-        fields = ['title', 'description', 'image','category', 'start_price','instant_price', 'start_time', 'end_time']
+        # ▼▼▼ 'condition', 'shipping_payer' 필드 추가 ▼▼▼
+        fields = ['title', 'description', 'category', 'condition', 'shipping_payer', 'image', 'start_price', 'instant_price', 'start_time', 'end_time']
         
-        # 디자인(Bootstrap)을 입히기 위한 설정
         widgets = {
-            'title': forms.TextInput(attrs={'class': 'form-control'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
-            'start_price': forms.NumberInput(attrs={'class': 'form-control'}),
-            # 날짜/시간 입력창을 예쁘게 보여주는 설정
+            'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '상품명을 입력하세요'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 5, 'placeholder': '상품에 대한 자세한 설명을 적어주세요.'}),
+            'category': forms.Select(attrs={'class': 'form-select'}),
+            'condition': forms.Select(attrs={'class': 'form-select'}),       # 추가
+            'shipping_payer': forms.Select(attrs={'class': 'form-select'}),  # 추가
+            'image': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+            'start_price': forms.NumberInput(attrs={'class': 'form-control', 'min': 100}),
+            'instant_price': forms.NumberInput(attrs={'class': 'form-control', 'min': 100}),
             'start_time': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
             'end_time': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
-            'instant_price': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '비워두면 경매로만 진행'}),
-            'category': forms.Select(attrs={'class': 'form-select'}), # 디자인 적용
         }
-        # 화면에 보여줄 이름표
         labels = {
             'title': '상품명',
-            'description': '상세설명',
+            'description': '상세 설명',
+            'category': '카테고리',
+            'condition': '상품 상태',         # 라벨 추가
+            'shipping_payer': '배송비 부담',  # 라벨 추가
             'image': '상품 이미지',
-            'start_price': '시작 가격 (원)',
+            'start_price': '시작 가격',
+            'instant_price': '即 즉시 구매가 (선택)',
             'start_time': '경매 시작 시간',
             'end_time': '경매 종료 시간',
-            'instant_price': '즉시 구매가 (선택사항)',
-            'category': '물건 카테고리',
         }
 
 

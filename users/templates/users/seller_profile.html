@@ -1,0 +1,63 @@
+{% extends 'auctions/base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card mb-5 border-0 shadow-sm bg-light">
+        <div class="card-body p-4 d-flex align-items-center">
+            <div class="rounded-circle bg-white shadow-sm d-flex justify-content-center align-items-center me-4" style="width: 80px; height: 80px; font-size: 2rem;">
+                👤
+            </div>
+            <div>
+                <h2 class="fw-bold mb-1">{{ seller.nickname|default:seller.username }}</h2>
+                <p class="text-muted mb-2">활동 지역: {{ seller.region.name|default:"전국" }}</p>
+                
+                <div class="d-flex align-items-center">
+                    <span class="badge bg-success me-2">신용도 {{ seller.reputation_score }}점</span>
+                    <div class="progress" style="width: 150px; height: 8px;">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ seller.reputation_score }}%" aria-valuenow="{{ seller.reputation_score }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h4 class="fw-bold mb-3">📦 판매 중인 상품 ({{ active_auctions.count }})</h4>
+    <div class="row mb-5">
+        {% for auction in active_auctions %}
+        <div class="col-md-3 mb-4">
+            <div class="card h-100 shadow-sm">
+                {% if auction.image %}
+                    <img src="{{ auction.image.url }}" class="card-img-top" style="height: 180px; object-fit: cover;">
+                {% else %}
+                    <div class="bg-secondary text-white d-flex align-items-center justify-content-center" style="height: 180px;">No Image</div>
+                {% endif %}
+                <div class="card-body">
+                    <h6 class="card-title text-truncate">{{ auction.title }}</h6>
+                    <p class="card-text text-danger fw-bold">{{ auction.current_price }}원</p>
+                    <a href="{% url 'auction_detail' auction.id %}" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-muted">판매 중인 상품이 없습니다.</div>
+        {% endfor %}
+    </div>
+
+    <h4 class="fw-bold mb-3 text-muted">🏁 거래 완료된 상품</h4>
+    <div class="row opacity-75">
+        {% for auction in closed_auctions %}
+        <div class="col-md-3 mb-4">
+            <div class="card h-100 border-0 bg-light">
+                <div class="card-body">
+                    <h6 class="card-title text-muted text-truncate">{{ auction.title }}</h6>
+                    <span class="badge bg-secondary">종료됨</span>
+                    <a href="{% url 'auction_detail' auction.id %}" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-muted small">완료된 거래가 없습니다.</div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
