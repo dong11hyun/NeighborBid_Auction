@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  # [1] Redis 서비스 (전국 경매 & 실시간 통신용)
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"  # 로컬에서도 접근 가능하게 포트 열기
+
+  # [2] Django 웹 서비스
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app  # [중요] 내 컴퓨터 코드를 컨테이너랑 연결 (코드 수정하면 바로 반영됨)
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis  # Redis가 켜져야 장고도 켜짐
+    environment:
+      - REDIS_HOST=redis  # 장고 설정에서 쓸 변수

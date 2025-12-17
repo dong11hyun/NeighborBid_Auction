@@ -31,6 +31,8 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne', # 1. 최상단에 추가 (ASGI 서버)
+    'channels',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -72,7 +74,19 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'config.wsgi.application'
+# 3. WSGI 대신 ASGI 사용 선언
+ASGI_APPLICATION = 'config.asgi.application'
 
+# 4. 채널 레이어 설정 (Redis 연결 - 도커용)
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            # docker-compose.yml에서 서비스 이름을 'redis'로 지었으므로, 여기서도 'redis'로 적습니다.
+            "hosts": [("redis", 6379)],
+        },
+    },
+}
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
