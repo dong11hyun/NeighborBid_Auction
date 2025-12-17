@@ -71,3 +71,6 @@ pip install -r requirements.txt
 python manage.py migrate
 python manage.py createsuperuser
 python manage.py runserver
+
+#도커
+docker-compose exec web python manage.py migrate
