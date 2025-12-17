@@ -194,4 +194,88 @@
     
     <div class="mb-5"></div>
 </div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+    const auctionId = "{{ auction.id }}";
+    // 파이썬 True/False를 JS true/false로 변환
+    const isNational = "{{ auction.is_national|yesno:'true,false' }}"; 
+    const currentUser = "{{ user.username }}";
+
+    // [중요] 전국 경매일 때만 소켓 연결
+    if (isNational === 'true') {
+        console.log("📡 전국 실시간 경매 모드: WebSocket 연결 시도...");
+
+        // ws:// 프로토콜 사용
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        const chatSocket = new WebSocket(
+            wsProtocol + window.location.host + '/ws/auction/' + auctionId + '/'
+        );
+
+        // 1. 소켓 연결 성공 시
+        chatSocket.onopen = function(e) {
+            console.log("✅ 소켓 연결 성공!");
+        };
+
+        // 2. 메시지 수신 (서버가 "새 가격이야!"라고 했을 때)
+        chatSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            
+            if (data.error) {
+                alert("❌ 입찰 실패: " + data.error);
+            } else if (data.type === 'update') {
+                // 화면 숫자 갱신 (새로고침 X)
+                updatePriceUI(data.amount, data.bidder);
+                
+                // 알림창 띄우기
+                alert(`🔔 호가 갱신! ${data.bidder}님이 ${data.amount}원 입찰!`);
+            }
+        };
+
+        // 3. 소켓 연결 끊김
+        chatSocket.onclose = function(e) {
+            console.error('❌ 소켓 연결이 끊어졌습니다.');
+        };
+
+        // [핵심] 입찰 버튼 클릭 가로채기
+        // (기존 form 제출을 막고 소켓 메시지로 보냄)
+        $(document).ready(function() {
+            $("form").on("submit", function(e) {
+                // 입찰 폼인지 확인 (name='amount'가 있는 input이 있는지)
+                if ($(this).find("input[name='amount']").length > 0) {
+                    e.preventDefault(); // 폼 제출(새로고침) 막기
+                    
+                    const bidAmount = $(this).find("input[name='amount']").val();
+                    
+                    // 소켓으로 전송
+                    chatSocket.send(JSON.stringify({
+                        'action': 'bid',
+                        'amount': bidAmount
+                    }));
+                }
+            });
+        });
+    }
+
+    // UI 업데이트 함수
+    function updatePriceUI(amount, bidder) {
+        // 현재가 숫자 찾아서 변경
+        // 주의: html 태그에 id="current-price" 등을 달아줘야 정확히 찾음. 
+        // 일단 텍스트 포함된 요소를 찾아 바꿉니다.
+        
+        // 예시: <h1 class="text-danger ...">50000<span ...>원</span></h1> 부분 수정
+        // 실제로는 해당 태그에 id="live-price"를 주는 게 제일 좋음
+        const priceTag = document.querySelector("h1.text-danger");
+        if(priceTag) {
+            priceTag.innerHTML = `${amount}<span class="fs-4">원</span>`;
+        }
+        
+        // 입찰가 입력창도 다음 단위로 자동 갱신
+        const inputField = document.querySelector("input[name='amount']");
+        if(inputField) {
+            inputField.value = parseInt(amount) + {{ auction.bid_unit }};
+            inputField.min = parseInt(amount) + {{ auction.bid_unit }};
+        }
+    }
+</script>
 {% endblock %}
