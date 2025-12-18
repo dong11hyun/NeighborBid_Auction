@@ -75,10 +75,16 @@ python manage.py runserver
 
 #### 도커
 
-하려는 작업,기존 명령어 (Local),새로운 명령어 (Docker)
+하려는 작업  > 기존 명령어 (Local),새로운 명령어 (Docker)
+
 서버 켜기,```python manage.py runserver```, ```docker-compose up```
+
 서버 켜기 (새로 빌드),-,```docker-compose up --build```  (패키지 설치하거나 설정 바꿨을 때)
+
 DB 마이그레이션 생성,```python manage.py makemigrations```, ```docker-compose exec web python manage.py makemigrations```
+
 DB 마이그레이션 적용,```python manage.py migrate```, ```docker-compose exec web python manage.py migrate```
+
 관리자 계정 생성,```python manage.py createsuperuser```, ```docker-compose exec web python manage.py createsuperuser```
+
 셸(Shell) 접속,```python manage.py shell```, ```docker-compose exec web python manage.py shell```
