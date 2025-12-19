@@ -4,6 +4,8 @@
 {% block content %}
 <div class="container mt-4">
     
+    <input type="hidden" id="current-user-id" value="{{ user.id|default_if_none:'' }}">
+    
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb bg-light p-2 rounded">
             <li class="breadcrumb-item"><a href="{% url 'auction_list' %}" class="text-decoration-none text-muted">홈</a></li>
@@ -23,7 +25,7 @@
                     <div class="bg-secondary text-white d-flex align-items-center justify-content-center rounded" style="height: 400px;">이미지 없음</div>
                 {% endif %}
             </div>
-            </div>
+        </div>
 
         <div class="col-md-5">
             <h2 class="fw-bold mb-3" style="font-size: 1.5rem;">
@@ -32,10 +34,11 @@
                 {% endif %}
                 {{ auction.title }}
             </h2> 
+            
             <div class="mb-4 pb-3 border-bottom">
                 <span class="text-muted small">현재가</span>
                 <div class="d-flex align-items-end">
-                    <h1 class="text-danger fw-bold mb-0 me-2">{{ auction.current_price }}<span class="fs-4">원</span></h1>
+                    <h1 class="text-danger fw-bold mb-0 me-2" id="current-price-display">{{ auction.current_price }}<span class="fs-4">원</span></h1>
                     <span class="badge bg-secondary mb-2">{{ auction.bids.count }} 입찰</span>
                 </div>
                 {% if auction.instant_price %}
@@ -43,9 +46,9 @@
                 {% endif %}
             </div>
 
-            <div class="d-grid gap-2 mb-4">
-                {% if user.is_authenticated and user != auction.seller %}
-                    <form method="post" class="d-grid">
+            <div id="auction-controls" class="d-grid gap-2 mb-4">
+                {% if user.is_authenticated and user != auction.seller and auction.status == 'ACTIVE' %}
+                    <form method="post" class="d-grid" id="bid-form">
                         {% csrf_token %}
                         <div class="input-group mb-2">
                             <input type="number" name="amount" class="form-control form-control-lg" 
@@ -73,26 +76,42 @@
                 {% if user == auction.seller %}
                     <div class="alert alert-warning text-center">
                         <strong>👨‍💼 판매자 메뉴</strong><br>
+                        {% if auction.status == 'ACTIVE' %}
                         <form action="{% url 'auction_close' auction.id %}" method="post" class="mt-2">
                             {% csrf_token %}
                             <button class="btn btn-sm btn-dark">조기 종료하기</button>
                         </form>
+                        {% else %}
+                        <span class="badge bg-dark">종료된 경매입니다</span>
+                        {% endif %}
                     </div>
                 {% endif %}
             </div>
-            {% with highest_bid=auction.bids.last %}
-                {% if user == highest_bid.bidder and auction.status != 'ACTIVE' %}
-                    <div class="card border-success mb-4">
-                        <div class="card-body text-center">
-                            <h5 class="text-success fw-bold">🎉 낙찰을 축하합니다!</h5>
-                            <p class="small text-muted">거래가 완료되었다면 판매자를 위해 후기를 남겨주세요.</p>
-                            <a href="{% url 'create_review' auction.id %}" class="btn btn-success">
-                                ✍️ 거래 후기 남기기
-                            </a>
-                        </div>
-                    </div>
-                {% endif %}
-            {% endwith %}
+            
+            <div id="congrats-card" class="card border-success mb-4" 
+                 style="display: {% if user == auction.bids.last.bidder and auction.status != 'ACTIVE' %}block{% else %}none{% endif %};">
+                <div class="card-body text-center">
+                    <h5 class="text-success fw-bold">🎉 낙찰을 축하합니다!</h5>
+                    <p class="small text-muted">거래가 완료되었다면 판매자를 위해 후기를 남겨주세요.</p>
+                    <a href="{% url 'create_review' auction.id %}" class="btn btn-success">
+                        ✍️ 거래 후기 남기기
+                    </a>
+                </div>
+            </div>
+
+            <div id="auction-end-card" class="card border-secondary mb-4 bg-light" 
+                 style="display: {% if auction.status != 'ACTIVE' and user != auction.bids.last.bidder %}block{% else %}none{% endif %};">
+                <div class="card-body text-center">
+                    <h5 class="text-secondary fw-bold">⛔ 경매가 종료되었습니다</h5>
+                    <p class="small text-muted" id="winner-info-text">
+                        {% if auction.bids.last %}
+                            낙찰자: {{ auction.bids.last.bidder.nickname|default:auction.bids.last.bidder.username }}
+                        {% else %}
+                            낙찰자 없이 종료됨
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
 
             <div class="card mb-4 bg-light border-0">
                 <div class="card-body">
@@ -206,17 +225,17 @@
 <script>
     // 1. Toast 알림 함수
     function showToast(message, type = 'info') {
-        let bgClass = 'text-bg-primary'; // 기본: 파랑
+        let bgClass = 'text-bg-primary';
         let icon = '📢';
 
         if (type === 'success') {
-            bgClass = 'text-bg-success'; // 초록
-            icon = '✅';
+            bgClass = 'text-bg-success';
+            icon = '🎉';
         } else if (type === 'error' || type === 'danger') {
-            bgClass = 'text-bg-danger';  // 빨강
+            bgClass = 'text-bg-danger';
             icon = '❌';
         } else if (type === 'warning') {
-            bgClass = 'text-bg-warning'; // 노랑
+            bgClass = 'text-bg-warning';
             icon = '⚠️';
         }
 
@@ -247,6 +266,9 @@
     // 파이썬 True/False를 JS true/false로 변환
     const isNational = "{{ auction.is_national|yesno:'true,false' }}"; 
     const currentUser = "{{ user.username }}";
+    
+    // 4. 내 숫자 ID 가져오기 (수정됨)
+    const currentUserId = document.getElementById('current-user-id').value;
 
     // 2. 전국 경매일 때만 소켓 연결
     if (isNational === 'true') {
@@ -258,12 +280,11 @@
             wsProtocol + window.location.host + '/ws/auction/' + auctionId + '/'
         );
 
-        // 소켓 연결 성공
         chatSocket.onopen = function(e) {
             console.log("✅ 소켓 연결 성공!");
         };
 
-        // 메시지 수신 (서버가 "새 가격이야!"라고 했을 때)
+        // 메시지 수신
         chatSocket.onmessage = function(e) {
             const data = JSON.parse(e.data);
             
@@ -281,16 +302,36 @@
                     showToast(`🔔 호가 갱신! ${data.bidder}님이 ${data.amount}원 입찰!`, 'info');
                 }
             }
-            // 즉시 구매 (종료)
-            else if (data.type === 'sold_out') {
+            // 5. 경매 종료(낙찰/즉시구매) 처리 로직 수정 (핵심!)
+            else if (data.type === 'sold_out' || data.type === 'auction_end') {
                 updatePriceUI(data.amount, data.bidder);
                 
-                showToast(data.msg, 'warning'); 
+                const winnerId = String(data.winner_id); // 서버에서 온 낙찰자 ID (문자열 변환)
+                const myId = String(currentUserId);      // 내 ID
                 
-                // 2초 뒤 새로고침
+                // 기존 입찰 버튼들 숨기기
+                const controls = document.getElementById('auction-controls');
+                if(controls) controls.style.display = 'none';
+
+                // 내가 낙찰자인 경우
+                if (myId && myId === winnerId) {
+                    document.getElementById('congrats-card').style.display = 'block'; // 축하 카드 보이기
+                    document.getElementById('auction-end-card').style.display = 'none';
+                    showToast("🎉 축하합니다! 낙찰되었습니다!", 'success');
+                } 
+                // 내가 낙찰자가 아닌 경우
+                else {
+                    document.getElementById('congrats-card').style.display = 'none'; 
+                    document.getElementById('auction-end-card').style.display = 'block'; // 종료 카드 보이기
+                    const winnerName = data.winner_nickname || data.bidder || "알 수 없음";
+                    document.getElementById('winner-info-text').innerText = `낙찰자: ${winnerName}`;
+                    showToast(`📢 경매가 종료되었습니다. 낙찰자: ${winnerName}`, 'warning');
+                }
+
+                // 3초 뒤 페이지 새로고침 (데이터 동기화)
                 setTimeout(() => {
                     location.reload();
-                }, 2000); 
+                }, 3000); 
             }
         };
 
@@ -299,35 +340,34 @@
             console.error('❌ 소켓 연결이 끊어졌습니다.');
         };
 
-        // 입찰 폼 가로채기
         $(document).ready(function() {
-            $("form").on("submit", function(e) {
-                if ($(this).find("input[name='amount']").length > 0) {
-                    e.preventDefault(); 
-                    
-                    const bidAmount = $(this).find("input[name='amount']").val();
-                    
-                    chatSocket.send(JSON.stringify({
-                        'action': 'bid',
-                        'amount': bidAmount
-                    }));
-                }
+            $("#bid-form").on("submit", function(e) {
+                e.preventDefault(); 
+                const bidAmount = $(this).find("input[name='amount']").val();
+                
+                chatSocket.send(JSON.stringify({
+                    'action': 'bid',
+                    'amount': bidAmount
+                }));
             });
         });
     }
 
-    // UI 업데이트 함수
     function updatePriceUI(amount, bidder) {
-        const priceTag = document.querySelector("h1.text-danger");
+        const priceTag = document.querySelector("#current-price-display");
         if(priceTag) {
             priceTag.innerHTML = `${amount}<span class="fs-4">원</span>`;
         }
 
-        // 입찰가 입력창도 다음 단위로 자동 갱신
         const inputField = document.querySelector("input[name='amount']");
         if(inputField) {
-            inputField.value = parseInt(amount) + {{ auction.bid_unit }};
-            inputField.min = parseInt(amount) + {{ auction.bid_unit }};
+            // Django Template 변수 대신 JS 변수로 계산하거나, 단순 업데이트
+            // 여기서는 단순화를 위해 현재 값 + 단위 로직은 유지하되, 
+            // 실시간성을 위해선 서버에서 next_bid_amount를 받는 게 더 좋습니다.
+            const unit = {{ auction.bid_unit }};
+            const nextPrice = parseInt(amount) + unit;
+            inputField.value = nextPrice;
+            inputField.min = nextPrice;
         }
     }
 </script>
