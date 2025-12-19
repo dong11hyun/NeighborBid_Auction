@@ -4,6 +4,8 @@ from django.db import transaction
 from django.utils import timezone
 from .models import Auction, Bid
 from wallet.models import Wallet, Transaction
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 def place_bid(auction_id, user, amount):
     """
@@ -146,15 +148,33 @@ def determine_winner(auction_id):
 
 def buy_now(auction_id, buyer):
     """
-    즉시 구매 함수 (수정버전)
-    논리 순서:
-    1. 구매자의 자금력 확인 (지갑 잔액 + 만약 내가 입찰자라면 묶인 돈까지 포함)
-    2. 자금이 충분할 경우에만 -> 기존 입찰 환불 및 결제 진행
+    즉시 구매 함수 (수정됨: transaction.on_commit 적용 + 디버깅 로그)
     """
+    # 1. 먼저 채널 레이어 함수 정의 (트랜잭션 바깥에서 실행될 함수)
+    def send_sold_out_notification():
+        print(f"📡 [Debug] 즉시 구매 알림 전송 시작: Auction ID {auction_id}")
+        try:
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f'auction_{auction_id}',
+                {
+                    'type': 'auction_end_notification',
+                    'bidder': buyer.username,
+                    'amount': instant_price_val, # 아래에서 캡처한 변수 사용
+                    'msg': f"📢 {buyer.username}님이 {instant_price_val}원에 즉시 구매하셨습니다! (경매 종료)"
+                }
+            )
+            print("✅ [Debug] 알림 전송 완료")
+        except Exception as e:
+            print(f"❌ [Debug] 알림 전송 실패: {e}")
+
     with transaction.atomic():
         # 1. 경매 정보 가져오기 (Lock)
         auction = Auction.objects.select_for_update().get(id=auction_id)
         
+        # 값을 미리 변수에 저장 (on_commit에서 쓰기 위함)
+        instant_price_val = auction.instant_price
+
         if auction.status != 'ACTIVE':
             raise ValueError("진행 중인 경매가 아닙니다.")
         if not auction.instant_price:
@@ -168,29 +188,17 @@ def buy_now(auction_id, buyer):
         # 3. 현재 1등 입찰자 확인
         current_highest_bid = auction.bids.order_by('-amount').first()
         
-        # ==========================================================
-        # [핵심 수정] 자금력 선(先) 검증 로직
-        # ==========================================================
-        # 내가 가진 '가용 자금'을 계산합니다.
+        # 자금력 검증
         available_funds = buyer_wallet.balance
-        
-        # 만약 내가 현재 1등 입찰자라면, 묶여있는 돈도 내 돈이므로 가용 자금에 포함시킵니다.
         if current_highest_bid and current_highest_bid.bidder == buyer:
             available_funds += current_highest_bid.amount
 
-        # 자금이 부족하면 아예 여기서 멈춥니다. (환불도 안 일어남)
         if available_funds < auction.instant_price:
-            raise ValueError(f"잔액이 부족합니다. (필요: {auction.instant_price}원, 보유(입찰금포함): {available_funds}원)")
+            raise ValueError(f"잔액이 부족합니다. (필요: {auction.instant_price}원)")
 
-
-        # ==========================================================
-        # [실행 로직] 검증 통과 후 -> 환불 및 결제 일괄 처리
-        # ==========================================================
-        
-        # 4. 기존 입찰자 환불 (내 돈이든 남의 돈이든 일단 풀어줌)
+        # 4. 기존 입찰자 환불
         if current_highest_bid:
             prev_wallet = Wallet.objects.select_for_update().get(user=current_highest_bid.bidder)
-            
             prev_wallet.locked_balance -= current_highest_bid.amount
             prev_wallet.balance += current_highest_bid.amount
             prev_wallet.save()
@@ -202,12 +210,8 @@ def buy_now(auction_id, buyer):
                 description=f"경매({auction.title}) 즉시 구매로 인한 입찰금 반환"
             )
 
-        # 5. 구매자 결제 (환불 후 잔액에서 차감)
-        # 만약 buyer == current_highest_bidder였다면, 위 4번 과정에서 balance가 늘어났으므로 안전하게 차감됨.
-        
-        # (주의: prev_wallet과 buyer_wallet이 같은 객체일 수 있으므로 다시 불러오거나 refresh)
+        # 5. 구매자 결제
         buyer_wallet.refresh_from_db() 
-        
         buyer_wallet.balance -= auction.instant_price
         buyer_wallet.save()
 
@@ -224,4 +228,9 @@ def buy_now(auction_id, buyer):
         auction.status = 'ENDED'
         auction.save()
 
-        return f"축하합니다! {auction.title} 상품을 즉시 구매했습니다."
+        # ==========================================================
+        # [핵심 수정] 트랜잭션이 '성공적으로 커밋된 후'에 메시지를 보냅니다.
+        # 이렇게 해야 DB 충돌을 방지하고, 확실하게 처리된 후에만 알림이 갑니다.
+        # ==========================================================
+        transaction.on_commit(send_sold_out_notification)
+    return f"축하합니다! {auction.title} 상품을 즉시 구매했습니다."

@@ -69,6 +69,17 @@ class AuctionConsumer(AsyncWebsocketConsumer):
             'bidder': event['bidder'],
             'msg': event['msg']
         }))
+    # ▼▼▼ [추가] 즉시 구매 발생 시 호출되는 핸들러 (services.py에서 호출함) ▼▼▼
+    async def auction_end_notification(self, event):
+        print(f"🔥 [Consumer] 웹소켓 수신 성공! 데이터: {event}") # 확인용 진단
+        
+        # 브라우저(JS)에게 최종 JSON 전송
+        await self.send(text_data=json.dumps({
+            'type': 'sold_out',       # 프론트엔드에서 구분할 타입
+            'amount': event['amount'],
+            'bidder': event['bidder'],
+            'msg': event['msg']
+        }))
 
     # (비동기 래퍼) DB에 입찰 저장하는 함수 호출
     @database_sync_to_async
