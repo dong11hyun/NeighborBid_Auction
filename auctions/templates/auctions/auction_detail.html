@@ -1,5 +1,7 @@
 {% extends 'auctions/base.html' %}
-{% load static %} {% block content %}
+{% load static %} 
+
+{% block content %}
 <div class="container mt-4">
     
     <nav aria-label="breadcrumb" class="mb-4">
@@ -194,15 +196,59 @@
     
     <div class="mb-5"></div>
 </div>
+
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1050;">
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 <script>
+    // 1. Toast 알림 함수
+    function showToast(message, type = 'info') {
+        let bgClass = 'text-bg-primary'; // 기본: 파랑
+        let icon = '📢';
+
+        if (type === 'success') {
+            bgClass = 'text-bg-success'; // 초록
+            icon = '✅';
+        } else if (type === 'error' || type === 'danger') {
+            bgClass = 'text-bg-danger';  // 빨강
+            icon = '❌';
+        } else if (type === 'warning') {
+            bgClass = 'text-bg-warning'; // 노랑
+            icon = '⚠️';
+        }
+
+        const toastHtml = `
+            <div class="toast align-items-center ${bgClass} border-0 mb-2" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body fw-bold">
+                        ${icon} ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>
+        `;
+
+        const toastContainer = document.querySelector('.toast-container');
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+
+        const newToastEl = toastContainer.lastElementChild;
+        const toast = new bootstrap.Toast(newToastEl, { delay: 3000 });
+        toast.show();
+        
+        newToastEl.addEventListener('hidden.bs.toast', function () {
+            newToastEl.remove();
+        });
+    }
+
     const auctionId = "{{ auction.id }}";
     // 파이썬 True/False를 JS true/false로 변환
     const isNational = "{{ auction.is_national|yesno:'true,false' }}"; 
     const currentUser = "{{ user.username }}";
 
-    // [중요] 전국 경매일 때만 소켓 연결
+    // 2. 전국 경매일 때만 소켓 연결
     if (isNational === 'true') {
         console.log("📡 전국 실시간 경매 모드: WebSocket 연결 시도...");
 
@@ -212,35 +258,39 @@
             wsProtocol + window.location.host + '/ws/auction/' + auctionId + '/'
         );
 
-        // 1. 소켓 연결 성공 시
+        // 소켓 연결 성공
         chatSocket.onopen = function(e) {
             console.log("✅ 소켓 연결 성공!");
         };
 
-        // 2. 메시지 수신 (서버가 "새 가격이야!"라고 했을 때)
+        // 메시지 수신 (서버가 "새 가격이야!"라고 했을 때)
         chatSocket.onmessage = function(e) {
             const data = JSON.parse(e.data);
             
+            // 에러
             if (data.error) {
-                alert("❌ 입찰 실패: " + data.error);
-            } else if (data.type === 'update') {
-                // 화면 숫자 갱신 (새로고침 X)
+                showToast("입찰 실패: " + data.error, 'error');
+            } 
+            // 입찰 갱신  (새로고침 X)
+            else if (data.type === 'update') {
                 updatePriceUI(data.amount, data.bidder);
                 
-                // 알림창 띄우기
-                alert(`🔔 호가 갱신! ${data.bidder}님이 ${data.amount}원 입찰!`);
+                if (data.bidder === currentUser) {
+                    showToast(`성공적으로 ${data.amount}원에 입찰했습니다!`, 'success');
+                } else {
+                    showToast(`🔔 호가 갱신! ${data.bidder}님이 ${data.amount}원 입찰!`, 'info');
+                }
             }
-            // ▼▼▼ [추가] 즉시 구매(Sold Out) 메시지 처리 ▼▼▼
+            // 즉시 구매 (종료)
             else if (data.type === 'sold_out') {
-                // 1. 가격 UI 업데이트 (혹시 보고 있던 사람들을 위해)
                 updatePriceUI(data.amount, data.bidder);
                 
-                // 2. 알림 띄우기
-                alert(data.msg);
+                showToast(data.msg, 'warning'); 
                 
-                // 3. 페이지 새로고침 (가장 깔끔하게 '종료됨' 상태로 전환)
-                // 새로고침하면 Django 뷰가 status='ENDED'를 감지하여 입찰 버튼 등을 싹 없애줍니다.
-                location.reload();
+                // 2초 뒤 새로고침
+                setTimeout(() => {
+                    location.reload();
+                }, 2000); 
             }
         };
 
@@ -249,17 +299,14 @@
             console.error('❌ 소켓 연결이 끊어졌습니다.');
         };
 
-        // [핵심] 입찰 버튼 클릭 가로채기
-        // (기존 form 제출을 막고 소켓 메시지로 보냄)
+        // 입찰 폼 가로채기
         $(document).ready(function() {
             $("form").on("submit", function(e) {
-                // 입찰 폼인지 확인 (name='amount'가 있는 input이 있는지)
                 if ($(this).find("input[name='amount']").length > 0) {
-                    e.preventDefault(); // 폼 제출(새로고침) 막기
+                    e.preventDefault(); 
                     
                     const bidAmount = $(this).find("input[name='amount']").val();
                     
-                    // 소켓으로 전송
                     chatSocket.send(JSON.stringify({
                         'action': 'bid',
                         'amount': bidAmount
@@ -271,17 +318,11 @@
 
     // UI 업데이트 함수
     function updatePriceUI(amount, bidder) {
-        // 현재가 숫자 찾아서 변경
-        // 주의: html 태그에 id="current-price" 등을 달아줘야 정확히 찾음. 
-        // 일단 텍스트 포함된 요소를 찾아 바꿉니다.
-        
-        // 예시: <h1 class="text-danger ...">50000<span ...>원</span></h1> 부분 수정
-        // 실제로는 해당 태그에 id="live-price"를 주는 게 제일 좋음
         const priceTag = document.querySelector("h1.text-danger");
         if(priceTag) {
             priceTag.innerHTML = `${amount}<span class="fs-4">원</span>`;
         }
-        
+
         // 입찰가 입력창도 다음 단위로 자동 갱신
         const inputField = document.querySelector("input[name='amount']");
         if(inputField) {
