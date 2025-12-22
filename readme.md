@@ -32,3 +32,4 @@ python manage.py runserver
 
 - 셸(Shell) 접속,
 ```docker-compose exec web python manage.py shell```
+
