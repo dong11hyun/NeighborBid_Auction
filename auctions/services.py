@@ -85,8 +85,6 @@ def place_bid(auction_id, user, amount):
         auction.save()
 
         return f"성공! {amount}원에 입찰했습니다."
-    
-# auctions/services.py (맨 아래에 추가)
 
 def determine_winner(auction_id):
     """
@@ -143,14 +141,12 @@ def determine_winner(auction_id):
             auction.save()
             return "입찰자가 없어 유찰되었습니다."
 
-
-# auctions/services.py (맨 아래에 추가)
-
 def buy_now(auction_id, buyer):
     """
     즉시 구매 함수 (수정됨: transaction.on_commit 적용 + 디버깅 로그)
     """
     # 1. 먼저 채널 레이어 함수 정의 (트랜잭션 바깥에서 실행될 함수)
+    # on_commit 동기단에서 실행
     def send_sold_out_notification():
         print(f"📡 [Debug] 즉시 구매 알림 전송 시작: Auction ID {auction_id}")
         try:
