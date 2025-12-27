@@ -135,6 +135,13 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+# 미디어 파일(사용자가 업로드한 파일)이 위치할 URL 주소
+MEDIA_URL = '/media/'
+
+# 실제 파일이 저장될 컴퓨터 내의 물리적 경로 (BASE_DIR은 프로젝트 최상위 폴더)
+# pathlib을 사용하는 경우 (최신 장고 기본값):
+MEDIA_ROOT = BASE_DIR / 'media'
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
