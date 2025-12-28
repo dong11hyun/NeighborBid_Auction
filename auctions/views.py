@@ -10,7 +10,7 @@ from .forms import AuctionForm, CommentForm
 from django.db.models import Q 
 from common.models import Region, Category 
 
-# [헬퍼 함수] 특정 지역의 모든 하위 지역(자식, 손자 등) ID를 재귀적으로 찾기
+# 특정 지역의 하위 지역(자식, 손자 등) ID를 재귀적으로 찾는 함수.
 def get_all_descendants(region):
     descendants = []
     children = region.sub_regions.all()
@@ -26,7 +26,7 @@ def auction_list(request):
     auctions = Auction.objects.filter(status__in=['ACTIVE', 'WAITING'])
     
     # === [필터 1] 지역 (Region) ===
-    region_id = request.GET.get('region')
+    region_id = request.GET.get('region') #안전하게 꺼내기 .get()
     selected_region = None
     
     if region_id:
@@ -118,7 +118,7 @@ def auction_detail(request, auction_id):
             messages.error(request, str(e)) # 실패 메시지 (돈 부족 등)
             
         return redirect('auction_detail', auction_id=auction.id)
-
+##### 버그 발견.?
     return render(request, 'auctions/auction_detail.html', {'auction': auction})
 
 # 내 경매 관리 및 참여 경매 관리
