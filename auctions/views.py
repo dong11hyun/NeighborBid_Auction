@@ -1,14 +1,14 @@
 # auctions/views.py
-
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import Auction
-from .services import place_bid # 아까 만든 입찰 로직 가져오기
+from .services import place_bid 
 from wallet.models import Wallet, Transaction 
 from .models import Bid
-from .forms import AuctionForm, CommentForm # 파일 맨 위에 이거 꼭 추가하세요!
-from django.db.models import Q # (이미 있으면 패스)
+from .forms import AuctionForm, CommentForm 
+from django.db.models import Q 
+from common.models import Region, Category 
 
 # [헬퍼 함수] 특정 지역의 모든 하위 지역(자식, 손자 등) ID를 재귀적으로 찾기
 def get_all_descendants(region):
@@ -19,11 +19,6 @@ def get_all_descendants(region):
         # 재귀 호출: 자식의 자식들을 계속 찾아옴
         descendants.extend(get_all_descendants(child))
     return descendants
-
-# 경매 목록 조회
-# auctions/views.py
-from django.db.models import Q
-from common.models import Region, Category # 모델 임포트 필수!
 
 # 경매 목록 조회 + 필터링(지역/카테고리/가격)
 def auction_list(request):
