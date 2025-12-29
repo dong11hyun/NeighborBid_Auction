@@ -118,8 +118,8 @@ def auction_detail(request, auction_id):
             messages.error(request, str(e)) # 실패 메시지 (돈 부족 등)
             
         return redirect('auction_detail', auction_id=auction.id)
-##### 버그 발견.?
-    return render(request, 'auctions/auction_detail.html', {'auction': auction})
+##### 버그 확인 후 수정
+    return render(request, 'auctions/auction_detail.html',context)
 
 # 내 경매 관리 및 참여 경매 관리
 @login_required
