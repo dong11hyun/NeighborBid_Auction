@@ -20,6 +20,7 @@ def get_all_descendants(region):
         descendants.extend(get_all_descendants(child))
     return descendants
 
+
 # 경매 목록 조회 + 필터링(지역/카테고리/가격)
 def auction_list(request):
     # 1. 기본: '진행중'이거나 '대기중'인 경매만 가져옴
@@ -89,6 +90,7 @@ def auction_list(request):
     }
     return render(request, 'auctions/auction_list.html', context)
 
+
 # 상세 조회 및 입찰하기
 @login_required # 로그인한 사람만 볼 수 있음
 def auction_detail(request, auction_id):
@@ -121,6 +123,7 @@ def auction_detail(request, auction_id):
 ##### 버그 확인 후 수정
     return render(request, 'auctions/auction_detail.html',context)
 
+
 # 내 경매 관리 및 참여 경매 관리
 @login_required
 def mypage(request):
@@ -138,6 +141,7 @@ def mypage(request):
         'my_auctions': my_auctions,
         'wallet': wallet
     })
+
 
 # 재화 충전 (간이 버전)
 @login_required
@@ -223,7 +227,6 @@ def auction_buy_now(request, auction_id):
     
     return redirect('auction_detail', auction_id=auction_id)
 
-# auctions/views.py 맨 위에 from .forms import AuctionForm, CommentForm <- 추가!
 
 # 맨 아래에 함수 추가
 @login_required
@@ -241,8 +244,6 @@ def auction_comment(request, auction_id):
             
     return redirect('auction_detail', auction_id=auction_id)
 
-
-# auctions/views.py 맨 아래 추가
 
 @login_required
 def toggle_watchlist(request, auction_id):
