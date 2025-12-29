@@ -193,7 +193,7 @@ def auction_create(request):
 
 
 # auctions/views.py (맨 아래에 추가)
-from .services import determine_winner
+from .services import determine_winner, buy_now
 
 @login_required
 def close_auction(request, auction_id):
@@ -210,8 +210,6 @@ def close_auction(request, auction_id):
     
     return redirect('auction_detail', auction_id=auction.id)
 
-# auctions/views.py
-from .services import determine_winner, buy_now  # buy_now 추가 import 확인!
 
 # 즉시 구매 버튼 처리
 @login_required
