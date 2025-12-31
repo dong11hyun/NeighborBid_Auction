@@ -27,6 +27,16 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+# 2. [필수] CSRF 신뢰할 수 있는 출처 추가
+# 동료가 IP 주소로 접속해서 버튼(POST)을 누를 때 튕겨내지 않게 설정합니다.
+# 'http://' 뒤에 본인의 내부 IP 주소(192.168.x.x)를 적어야 하는데,
+# 테스트니까 와일드카드로 퉁칩시다. (실무에선 정확한 도메인 필수)
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+    # 예: http://192.168.0.15:8000 (본인 IP 대역에 맞게 설정하거나 아래처럼 전체 허용)
+    'http://*', 
+]
 
 # Application definition
 
