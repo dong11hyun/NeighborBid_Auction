@@ -19,3 +19,13 @@ services:
       - redis  # Redis가 켜져야 장고도 켜짐
     environment:
       - REDIS_HOST=redis  # 장고 설정에서 쓸 변수
+
+  # [3] Redis 웹 관리 도구 (브라우저 접속용)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis

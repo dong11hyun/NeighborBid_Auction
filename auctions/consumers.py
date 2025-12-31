@@ -30,6 +30,7 @@ class AuctionConsumer(AsyncWebsocketConsumer):
 
     # 2. 브라우저에서 입찰 요청을 보냈을 때 (Receive)
     async def receive(self, text_data):
+        # 1. JSON 문자열을 파이썬 딕셔너리로 변환
         text_data_json = json.loads(text_data)
         action = text_data_json.get('action') # 'bid' 같은 동작 구분
 
