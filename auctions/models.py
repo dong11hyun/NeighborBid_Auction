@@ -41,6 +41,16 @@ class Auction(models.Model):
     # True: 웹소켓+Redis 사용 (전국 노출)
     # False: 일반 DB 트랜잭션 사용 (지역 한정)
     is_national = models.BooleanField(default=False, verbose_name="전국 실시간 경매")
+
+    # [추가] 낙찰자 (경매 종료 시 확정)
+    winner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='won_auctions',
+        verbose_name="낙찰자"
+    )
     
     # [추가] 카테고리
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True)

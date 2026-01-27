@@ -56,10 +56,16 @@ def create_review(request, auction_id):
     
     # [보안 검사]
     # 1. 낙찰자만 리뷰를 쓸 수 있음
-    # (주의: 현재 시스템에서 낙찰자를 어떻게 저장했는지 확인 필요. 
-    #  일단 '가장 높은 입찰자'를 낙찰자로 간주하거나, Auction 모델에 buyer 필드가 있다면 사용)
-    last_bid = auction.bids.order_by('-amount').first()
-    if not last_bid or last_bid.bidder != request.user:
+    # winner 필드가 있으면 그것을 우선 사용
+    is_winner = False
+    if hasattr(auction, 'winner') and auction.winner:
+        is_winner = (auction.winner == request.user)
+    else:
+        # winner 필드가 없는 경우(혹은 구버전 데이터) 입찰 기록으로 폴백
+        last_bid = auction.bids.order_by('-amount').first()
+        is_winner = (last_bid and last_bid.bidder == request.user)
+    
+    if not is_winner:
         messages.error(request, "낙찰자만 후기를 남길 수 있습니다.")
         return redirect('auction_detail', auction_id=auction.id)
     
