@@ -35,7 +35,7 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password # 실제 운영 시에는 .env 변수 사용 ${DB_PASSWORD}
     ports:
-      - "5432:5432"
+      - "5433:5432" # [변경] 로컬 DB(5432)와 충돌 방지 위해 5433 사용
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
