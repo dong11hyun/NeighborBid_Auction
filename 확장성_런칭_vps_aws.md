@@ -548,17 +548,81 @@ docker compose -f docker-compose.prod.yml ps
 # 1. certbot 디렉토리 생성
 mkdir -p certbot/conf certbot/www
 
-# 2. certbot 실행 (Docker)
-docker run -it --rm \
-  -v $(pwd)/certbot/conf:/etc/letsencrypt \
-  -v $(pwd)/certbot/www:/var/www/certbot \
-  certbot/certbot certonly --webroot \
-  --webroot-path=/var/www/certbot \
-  -d neighborbid.com -d www.neighborbid.com
+## Step 8: 도메인 구매 및 연결 (상세 가이드)
 
-# 3. Nginx 재시작
-docker compose restart nginx
+드디어 나만의 주소(`neighborbid.com`)를 갖는 시간입니다!
+한국에서 가장 저렴하고 관리가 편한 **"호스팅케이알(HostingKR)"**을 기준으로 설명드릴게요. (가비아도 비슷합니다.)
+
+### 8.1 도메인 구매하기 (호스팅케이알 기준)
+
+1.  [호스팅케이알](https://www.hosting.kr/) 접속 및 회원가입
+2.  검색창에 원하는 도메인 입력 (예: `neighborbid`)
+3.  `.com` 또는 `.co.kr` 등 원하는 확장자 선택 후 **[등록신청]**
+4.  결제 진행 (1년에 약 1.5만원 ~ 2만원)
+5.  **구매 완료!**
+
+### 8.2 DNS 설정 (내 도메인을 AWS 서버로 연결)
+
+구매한 도메인이 우리 AWS 서버(`43.202.xxx.xxx`)를 가리키게 해야 합니다.
+
+1.  호스팅케이알 로그인 → **[나의 서비스]** → **[도메인 관리]**
+2.  구매한 도메인 클릭
+3.  **[네임서버/DNS]** 탭 클릭 → **[DNS 레코드 관리]** 섹션으로 이동
+4.  **[+ 새 레코드 추가]** 버튼 클릭 후 아래 **두 개**를 추가합니다.
+
+**첫 번째 레코드 (메인 주소)**
+| 유형 | 호스트(이름) | 값(IP주소) | TTL |
+|:---:|:---:|:---:|:---:|
+| **A** | **@** (또는 비워둠) | **[AWS 고정 IP]** | 600 |
+*(예: 값에 `43.202.137.187` 입력)*
+
+**두 번째 레코드 (www 주소)**
+| 유형 | 호스트(이름) | 값(IP주소) | TTL |
+|:---:|:---:|:---:|:---:|
+| **A** | **www** | **[AWS 고정 IP]** | 600 |
+
+5.  **[저장]** 클릭
+6.  **확인**: 브라우저 주소창에 `http://내도메인.com` 입력 시, Django 에러 페이지나 "Welcome to Nginx" 등이 뜨면 성공! (적용까지 10분~1시간 소요될 수 있음)
+
+---
+
+## Step 9: HTTPS (보안 자물쇠) 달기 - 정말 중요!
+
+요즘 웹사이트에 자물쇠(SSL)가 없으면 브라우저가 "주의 요망"이라고 빨간 경고를 띄웁니다.
+하지만 걱정 마세요. 우리가 미리 만들어둔 설정 덕분에 **명령어 한 방**이면 끝납니다.
+
+### 9.1 SSL 인증서 발급 (Certbot)
+
+서버 터미널(Git Bash)에서 아래 명령어를 **한 줄씩** 입력하세요.
+(명령어 중간에 `neighborbid.com` 부분은 **반드시 본인 도메인으로 바꿔야 합니다!**)
+
+```bash
+# 1. Certbot 폴더 만들기 (이미 위에서 자동 생성됐겠지만 확인차)
+mkdir -p certbot/conf certbot/www
+
+# 2. 인증서 발급 요청 (★중요: 아래 도메인 부분을 내 껄로 수정해서 복사하세요!)
+docker compose -f docker-compose.prod.yml run --rm --entrypoint "\
+  certbot certonly --webroot -w /var/www/certbot \
+    --email 내이메일@gmail.com \
+    -d 내도메인.com \
+    -d www.내도메인.com \
+    --rsa-key-size 4096 \
+    --agree-tos \
+    --force-renewal" nginx
 ```
+*(위 명령어가 너무 길어서 잘 안 되면, 메모장에 복사해서 수정 후 붙여넣으세요)*
+
+### 9.2 성공 확인 및 적용
+터미널에 `Successfully received certificate` 라는 문구가 뜨면 성공입니다!
+이제 Nginx가 이 인증서를 쓰도록 재시작해 줍니다.
+
+```bash
+docker compose -f docker-compose.prod.yml restart nginx
+```
+
+### 9.3 최종 접속 테스트
+크롬 브라우저를 켜고 `https://내도메인.com` 으로 접속해보세요. 주소창 옆에 **자물쇠 아이콘 🔒**이 보이면 런칭 성공입니다!
+
 
 ---
 
