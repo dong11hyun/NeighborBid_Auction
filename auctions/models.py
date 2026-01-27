@@ -3,6 +3,7 @@
 from django.db import models
 from django.conf import settings
 from common.models import Region, Category
+from django.core.validators import FileExtensionValidator
 
 class Auction(models.Model):
     # 판매자 (User와 연결)
@@ -11,7 +12,14 @@ class Auction(models.Model):
     # 상품 정보
     title = models.CharField(max_length=100) # 상품명
     description = models.TextField() # 상세 설명
-    image = models.ImageField(upload_to='auction_images/', blank=True, null=True) # 상품 이미지
+    
+    # [보안] 이미지 확장자 검증 추가
+    image = models.ImageField(
+        upload_to='auction_images/', 
+        blank=True, 
+        null=True,
+        validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png', 'webp'])]
+    ) 
     
     # 가격 설정 (음수 방지를 위해 PositiveIntegerField 사용)
     start_price = models.PositiveIntegerField() # 시작가

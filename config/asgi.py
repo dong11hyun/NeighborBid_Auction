@@ -11,13 +11,16 @@ from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
 import auctions.routing
+from config.custom_middleware import AuctionAccessMiddleware # 커스텀 미들웨어 임포트
 
 application = ProtocolTypeRouter({
     "http": get_asgi_application(),
-    # websocket 요청은 -> 로그인 검사(Auth) -> 라우팅(URLRouter) -> 컨슈머로 전달
+    # websocket 요청은 -> 로그인 검사(Auth) -> 커스텀 검사(AuctionAccess) -> 라우팅(URLRouter) -> 컨슈머로 전달
     "websocket": AuthMiddlewareStack(
-        URLRouter(
-            auctions.routing.websocket_urlpatterns
+        AuctionAccessMiddleware(
+            URLRouter(
+                auctions.routing.websocket_urlpatterns
+            )
         )
     ),
 })

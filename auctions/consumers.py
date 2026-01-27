@@ -1,10 +1,13 @@
 # auctions/consumers.py
 
 import json
+import logging # 로깅 추가
 from channels.generic.websocket import AsyncWebsocketConsumer
 from .models import Auction, Bid
-from .services import place_bid # 기존 로직 재사용
+from .services import place_bid 
 from channels.db import database_sync_to_async
+
+logger = logging.getLogger(__name__)
 
 class AuctionConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -17,11 +20,17 @@ class AuctionConsumer(AsyncWebsocketConsumer):
             self.room_group_name,
             self.channel_name
         )
+        
+        # [로깅] 연결 확인
+        logger.info(f"WebSocket Connected: Auction {self.auction_id}, User: {self.scope['user']}")
 
         # 연결 승인
         await self.accept()
 
     async def disconnect(self, close_code):
+        # [로깅] 연결 종료
+        logger.info(f"WebSocket Disconnected: Auction {self.auction_id}, Code: {close_code}")
+        
         # 그룹 탈퇴
         await self.channel_layer.group_discard(
             self.room_group_name,

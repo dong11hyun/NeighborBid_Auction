@@ -5,3 +5,8 @@ sqlparse==0.5.4
 tzdata==2025.2
 channels[daphne]
 channels_redis
+python-dotenv
+django-redis
+psycopg2-binary
+celery
+django-widget-tweaks
