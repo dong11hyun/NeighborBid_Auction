@@ -1,0 +1,27 @@
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+WORKDIR /app
+
+# 시스템 패키지 설치 (PostgreSQL 드라이버 빌드용)
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python 패키지 설치
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 소스 코드 복사
+COPY . /app/
+
+# 정적 파일 모으기 (Production only)
+RUN python manage.py collectstatic --noinput
+
+EXPOSE 8000
+
+# Daphne로 실행 (ASGI 지원)
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "config.asgi:application"]

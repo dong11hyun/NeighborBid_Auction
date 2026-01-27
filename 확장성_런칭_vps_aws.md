@@ -451,7 +451,10 @@ FileZilla 등 SFTP 클라이언트 사용:
 
 ---
 
-## Step 6: 프로덕션 설정
+## Step 6: 프로덕션 설정 (매우 간편해짐!)
+
+우린 이미 **프로덕션용 설정 파일들(`docker-compose.prod.yml`, `nginx.conf`, `Dockerfile.prod`)을 프로젝트에 포함**시켜 두었습니다.
+따라서 서버에서 복잡하게 파일을 수정할 필요 없이, **환경 변수(.env)**만 만들어주면 됩니다.
 
 ### 6.1 .env 파일 생성
 
@@ -459,207 +462,63 @@ FileZilla 등 SFTP 클라이언트 사용:
 nano .env
 ```
 
-아래 내용 입력 (값은 본인 것으로 변경):
+아래 내용을 복사해서 붙여넣으세요. (값은 본인 것으로 꼭 변경!)
 
 ```env
-# Django
-DJANGO_SECRET_KEY=your-super-secret-key-change-this-immediately
+# Django 설정
+DJANGO_SECRET_KEY=yoursecretkey
 DJANGO_DEBUG=False
 ALLOWED_HOSTS=neighborbid.com,www.neighborbid.com,[고정IP]
 
-# Database
+# 데이터베이스 설정
 DB_NAME=neighborbid
 DB_USER=postgres
-DB_PASSWORD=your-secure-db-password
+DB_PASSWORD=yoursecurepassword
 DB_HOST=postgres
 DB_PORT=5432
 
-# Redis
+# Redis 설정
 REDIS_HOST=redis
 ```
 
+**[저장 및 종료 방법]**
+- `Ctrl + O` (저장) → `Enter`
+- `Ctrl + X` (종료)
+
 > [!IMPORTANT]
-> `DJANGO_SECRET_KEY`는 아래 명령어로 생성하세요:
+> `DJANGO_SECRET_KEY`는 아래 명령어로 생성해서 넣으세요:
 > ```bash
 > python3 -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
 > ```
-
-### 6.2 docker-compose.yml 수정 (프로덕션용)
-
-```yaml
-version: '3.8'
-
-services:
-  # PostgreSQL 데이터베이스
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: always
-
-  # Redis
-  redis:
-    image: redis:alpine
-    restart: always
-
-  # Django + Daphne
-  web:
-    build: .
-    command: daphne -b 0.0.0.0 -p 8000 config.asgi:application
-    volumes:
-      - static_volume:/app/staticfiles
-      - media_volume:/app/media
-    env_file:
-      - .env
-    depends_on:
-      - postgres
-      - redis
-    restart: always
-
-  # Nginx 리버스 프록시
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf
-      - static_volume:/app/staticfiles
-      - media_volume:/app/media
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
-    depends_on:
-      - web
-    restart: always
-
-volumes:
-  postgres_data:
-  static_volume:
-  media_volume:
-```
-
-### 6.3 nginx.conf 생성
-
-```bash
-nano nginx.conf
-```
-
-```nginx
-upstream web {
-    server web:8000;
-}
-
-server {
-    listen 80;
-    server_name neighborbid.com www.neighborbid.com;
-
-    location /.well-known/acme-challenge/ {
-        root /var/www/certbot;
-    }
-
-    location / {
-        return 301 https://$host$request_uri;
-    }
-}
-
-server {
-    listen 443 ssl;
-    server_name neighborbid.com www.neighborbid.com;
-
-    ssl_certificate /etc/letsencrypt/live/neighborbid.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/neighborbid.com/privkey.pem;
-
-    location /static/ {
-        alias /app/staticfiles/;
-    }
-
-    location /media/ {
-        alias /app/media/;
-    }
-
-    location / {
-        proxy_pass http://web;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-### 6.4 Dockerfile 수정 (프로덕션용)
-
-```dockerfile
-FROM python:3.11-slim
-
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
-
-WORKDIR /app
-
-# 시스템 패키지 설치
-RUN apt-get update && apt-get install -y \
-    libpq-dev \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
-
-# Python 패키지 설치
-COPY requirements.txt /app/
-RUN pip install --no-cache-dir -r requirements.txt
-
-# 소스 코드 복사
-COPY . /app/
-
-# 정적 파일 수집
-RUN python manage.py collectstatic --noinput
-
-EXPOSE 8000
-
-CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "config.asgi:application"]
-```
-
-### 6.5 requirements.txt 업데이트
-
-```text
-asgiref==3.11.0
-Django==5.2.9
-pillow==12.0.0
-sqlparse==0.5.4
-tzdata==2025.2
-channels[daphne]
-channels_redis
-psycopg2-binary==2.9.9
-python-dotenv==1.0.0
-gunicorn==21.2.0
-```
 
 ---
 
 ## Step 7: 실행 및 마이그레이션
 
+이제 준비된 **프로덕션용 밀키트**(`docker-compose.prod.yml`)를 사용해서 실행만 하면 됩니다!
+
 ```bash
-# 1. 이미지 빌드
-docker compose build
+# 1. 이미지 빌드 및 실행 (프로덕션 파일 지정: -f 옵션 사용)
+docker compose -f docker-compose.prod.yml up -d --build
 
-# 2. 컨테이너 시작
-docker compose up -d
+# 2. 데이터베이스 마이그레이션
+docker compose -f docker-compose.prod.yml exec web python manage.py migrate
 
-# 3. 데이터베이스 마이그레이션
-docker compose exec web python manage.py migrate
+# 3. 관리자 계정 생성
+docker compose -f docker-compose.prod.yml exec web python manage.py createsuperuser
 
-# 4. 관리자 계정 생성
-docker compose exec web python manage.py createsuperuser
+# 4. 정적 파일 모으기 (이미지 빌드 시 자동 실행되지만 확인차)
+# (Dockerfile.prod에 포함되어 있어 생략 가능하지만, 에러 시 실행)
+# docker compose -f docker-compose.prod.yml exec web python manage.py collectstatic --noinput
 
 # 5. 상태 확인
-docker compose ps
+docker compose -f docker-compose.prod.yml ps
 ```
+
+> [!TIP]
+> 명령어에 매번 `-f docker-compose.prod.yml`을 붙이는 게 귀찮다면?
+> `alias dcprod='docker compose -f docker-compose.prod.yml'` 처럼 단축어를 등록해서 쓸 수도 있습니다.
+
 
 ---
 
