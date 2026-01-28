@@ -189,17 +189,20 @@ SESSION_CACHE_ALIAS = "default"
 
 
 # [보안 설정]
+# 환경변수로 SSL 리다이렉트 제어 (기본값: True, HTTPS 없으면 False로 설정)
+SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'True') == 'True'
+
 if not DEBUG:
     # HTTPS 설정 (AWS 로드밸런서 뒤에 있다면 X-Forwarded-Proto 확인 필요)
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = SECURE_SSL_REDIRECT
+    CSRF_COOKIE_SECURE = SECURE_SSL_REDIRECT
     
-    # HSTS 설정 (1년)
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
+    # HSTS 설정 (1년) - SSL 사용 시에만
+    if SECURE_SSL_REDIRECT:
+        SECURE_HSTS_SECONDS = 31536000
+        SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+        SECURE_HSTS_PRELOAD = True
 
 # CSRF Trusted Origins
 trusted_origins = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000')
