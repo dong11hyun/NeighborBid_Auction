@@ -8,7 +8,7 @@ fi
 domains=(neighborbid.com www.neighborbid.com)
 rsa_key_size=4096
 data_path="./certbot"
-email="your-email@example.com" # PLEASE UPDATE THIS
+email="" # Set to empty string to avoid "problem with your email address" error
 staging=0 # Set to 1 if you're testing your setup to avoid hitting request limits
 
 if [ -d "$data_path" ]; then
