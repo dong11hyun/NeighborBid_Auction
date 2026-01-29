@@ -22,6 +22,9 @@ if sentry_dsn:
         send_default_pii=True
     )
 
+# GA4 Measurement ID
+GA4_MEASUREMENT_ID = os.environ.get('GA4_MEASUREMENT_ID')
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 

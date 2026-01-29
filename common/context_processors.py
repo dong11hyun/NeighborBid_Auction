@@ -7,4 +7,5 @@ def global_settings(request):
     """
     return {
         'GOOGLE_MAPS_API_KEY': getattr(settings, 'GOOGLE_MAPS_API_KEY', ''),
+        'GA4_MEASUREMENT_ID': getattr(settings, 'GA4_MEASUREMENT_ID', None),
     }
