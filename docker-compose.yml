@@ -22,6 +22,7 @@ services:
       - REDIS_HOST=redis
       - DB_HOST=db
       - DB_PORT=5432
+      - SECURE_SSL_REDIRECT=False
       # .env 파일에서 DB 비밀번호 등을 가져오도록 설정 권장 (env_file 사용)
     env_file:
       - .env
@@ -37,7 +38,7 @@ services:
     ports:
       - "5433:5432" # [변경] 로컬 DB(5432)와 충돌 방지 위해 5433 사용
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data_dev:/var/lib/postgresql/data
 
   # [3] Redis 웹 관리 도구 (브라우저 접속용)
   redis-commander:
@@ -50,4 +51,4 @@ services:
       - redis
 
 volumes:
-  postgres_data:
+  postgres_data_dev:
