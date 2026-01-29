@@ -8,7 +8,7 @@ fi
 domains=(neighborbid.com www.neighborbid.com)
 rsa_key_size=4096
 data_path="./certbot"
-email="" # Set to empty string to avoid "problem with your email address" error
+email="admin@neighborbid.com" # Use a valid-looking email to bypass prompts
 staging=0 # Set to 1 if you're testing your setup to avoid hitting request limits
 
 if [ -d "$data_path" ]; then
@@ -73,6 +73,7 @@ docker compose -f docker-compose.prod.yml run --rm --entrypoint "\
     $domain_args \
     --rsa-key-size $rsa_key_size \
     --agree-tos \
+    --no-eff-email \
     --force-renewal" certbot
 echo
 
