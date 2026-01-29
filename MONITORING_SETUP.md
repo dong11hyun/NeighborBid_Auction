@@ -28,7 +28,7 @@ docker compose -f docker-compose.prod.yml ps
 4. **"Add your data"** 단계에서 정보 입력:
    * **Database type**: `PostgreSQL`
    * **Name**: `NeighborBid DB` (아무거나)
-   * **Host**: `postgres` (★중요: localhost 아님!)
+   * **Host**: `db` (★중요: localhost 아님!)
    * **Port**: `5432`
    * **Database name**: `neighborbid` (env 파일의 DB_NAME)
    * **Username**: `postgres` (env 파일의 DB_USER)
