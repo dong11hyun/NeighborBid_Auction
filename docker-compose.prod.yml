@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  postgres:
+  db:
     image: postgres:15-alpine
     environment:
       POSTGRES_DB: ${DB_NAME}
@@ -26,14 +26,14 @@ services:
       - DB_NAME=${DB_NAME}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
-      - DB_HOST=postgres
+      - DB_HOST=${DB_HOST}
       - DB_PORT=5432
       - REDIS_HOST=redis
     volumes:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
     depends_on:
-      - postgres
+      - db
       - redis
     restart: always
 
@@ -64,9 +64,9 @@ services:
       MB_DB_PORT: 5432
       MB_DB_USER: ${DB_USER}
       MB_DB_PASS: ${DB_PASSWORD}
-      MB_DB_HOST: postgres
+      MB_DB_HOST: db
     depends_on:
-      - postgres
+      - db
     volumes:
       - metabase_data:/metabase-data
 
