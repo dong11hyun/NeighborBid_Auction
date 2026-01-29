@@ -10,3 +10,4 @@ django-redis
 psycopg2-binary
 celery
 django-widget-tweaks
+sentry-sdk
