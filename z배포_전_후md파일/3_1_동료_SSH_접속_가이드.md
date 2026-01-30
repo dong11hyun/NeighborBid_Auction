@@ -1,116 +1,122 @@
-# 🔑 동료 개발자를 위한 SSH 접속 권한 발급 가이드
+# 동료 서버 등록 및 공유 폴더 설정 가이드
 
-혼자 쓰는 서버가 아니라, **동료도 함께 접속해서 작업할 수 있도록** SSH 키를 만들고 서버에 등록하는 방법입니다.
-
----
-
-## 📋 전체 흐름
-
-1.  **키 생성**: 내 컴퓨터(또는 동료 컴퓨터)에서 열쇠(Private Key)와 자물쇠(Public Key) 한 쌍을 만듭니다.
-2.  **키 등록**: 자물쇠(Public Key)를 서버의 `authorized_keys` 명단에 등록합니다.
-3.  **파일 전달**: 열쇠(Private Key)를 동료에게 안전하게 전달합니다.
-4.  **접속**: 동료는 그 열쇠를 이용해 서버에 들어갈 수 있습니다.
+이 가이드는 동료를 나의 서버에 등록하고, SSH 키를 통해 안전하게 접속하며, 공동 작업을 위한 공유 폴더를 설정하는 과정을 설명합니다.
 
 ---
 
-## Step 1: SSH 키 생성하기 (Windows 기준)
+## � 1. 동료에게 준비 시킬 것 (딱 1가지)
 
-이 작업은 **PowerShell**에서 진행합니다.
+동료에게 **"SSH 공개키(Public Key)를 보내달라"**고 요청하세요.
 
-1.  **PowerShell**을 엽니다.
-2.  아래 명령어를 입력합니다. (이메일 주소는 식별용이니 동료 이메일을 적으세요)
+### 동료 PC (Windows / Git Bash or PowerShell)에서 실행
+동료는 아래 명령어를 자신의 터미널에서 실행해야 합니다.
 
-```powershell
-ssh-keygen -t rsa -b 4096 -C "colleague@example.com" -f ./colleague_key
+```bash
+ssh-keygen -t rsa -b 4096
 ```
 
-3.  `Enter passphrase`: 그냥 **Enter** 두 번 누르세요. (비밀번호 없이 접속)
-4.  이제 현재 폴더에 두 개의 파일이 생깁니다.
-    - `colleague_key` (🔒 **비밀키**): 절대 남에게 주면 안 됨 (동료에게만 전달)
-    - `colleague_key.pub` (📢 **공개키**): 서버에 등록할 내용
+- **입력 요청 시**: 그냥 `Enter` 키를 3번 누르면 됩니다. (경로 및 비밀번호 설정 스킵)
+- **생성된 파일**:
+    - `id_rsa` (비밀키): **절대 공유 금지**
+    - `id_rsa.pub` (공개키): **이 파일의 내용을 복사해서 나에게 전달**
 
 ---
 
-## Step 2: 서버에 동료 키 등록하기 (서버 관리자용)
+## 🔹 2. 실제 작업 흐름 (서버 관리자가 수행)
 
-**가정**: 동료가 자신의 컴퓨터에서 키를 만들었고, `colleague_key.pub` (공개키) 파일의 내용을 복사해서 카톡이나 슬랙으로 보내줬다고 가정합니다.
+### ① 서버에 동료 계정 생성
 
-받은 내용 예시:
-`ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQ... (생략) ... colleague@example.com`
+서버에 접속하여 새로운 사용자를 추가하고 관리자 권한을 부여합니다.
+
+```bash
+sudo adduser teammate
+sudo usermod -aG sudo teammate   # 관리자 권한(sudo) 부여
+```
+
+### ② SSH 키 등록 및 설정
+
+각자 자신의 SSH 키로 접속하게 됩니다.
+- **나**: `~/.ssh/id_rsa` 사용
+- **동료**: 동료의 공개키 사용
+
+동료를 위한 SSH 디렉토리를 생성하고 권한을 설정합니다.
+
+```bash
+# 디렉토리 생성 및 권한 설정
+sudo mkdir /home/teammate/.ssh
+sudo chmod 700 /home/teammate/.ssh   # .ssh 디렉토리는 소유자(teammate)만 접근 가능
+```
+
+동료의 공개키를 등록합니다.
+
+```bash
+# 편집기 열기
+sudo nano /home/teammate/.ssh/authorized_keys
+```
+
+> **Nano 편집기 내에서**: 동료가 보내준 `id_rsa.pub` (공개키) 내용을 그대로 붙여넣고 저장(`Ctrl+O` -> `Enter` -> `Ctrl+X`)하세요.
+
+**권한 설정 (필수 - 안 하면 접속 실패함)**
+
+```bash
+# 파일 권한 설정 (소유자만 읽기/쓰기 가능)
+sudo chmod 600 /home/teammate/.ssh/authorized_keys
+
+# 소유권 변경 (root -> teammate)
+sudo chown -R teammate:teammate /home/teammate/.ssh
+```
 
 ---
 
-### 1. 서버에 접속
-관리자(본인) 권한으로 서버에 접속합니다.
+## 🔹 3. 비밀번호 로그인 차단 (보안 필수)
+
+SSH 설정을 수정하여 비밀번호 로그인을 막고, 오직 키 파일로만 접속하도록 설정합니다.
+
+### SSH 설정 파일 수정
 
 ```bash
-ssh -i "my-key.pem" ubuntu@123.456.789.10
+sudo nano /etc/ssh/sshd_config
 ```
 
-### 2. .ssh 폴더 확인 (없으면 생성)
-보통은 있지만, 혹시 모르니 확인하고 권한을 설정합니다.
+아래 항목을 찾아 다음과 같이 변경하세요. (주석 `#`이 있다면 제거)
+
+```ssh
+PasswordAuthentication no
+PubkeyAuthentication yes
+```
+
+### SSH 재시작
+
+설정 변경 사항을 적용합니다.
 
 ```bash
-# 폴더 생성 (이미 있으면 무시됨)
-mkdir -p ~/.ssh
-
-# 권한 설정 (매우 중요! 권한이 너무 열려있으면 접속 거부당함)
-chmod 700 ~/.ssh
+sudo systemctl restart ssh
 ```
 
-### 3. 공개키 등록 (가장 쉬운 방법)
-`nano` 편집기를 열고 붙여넣는 게 귀찮다면, 아래 명령어를 사용하세요.
-
-```bash
-# 1. 아래 명령어를 입력하고 엔터를 칩니다. (따옴표 주의!)
-echo "ssh-rsa AAAAB3..." >> ~/.ssh/authorized_keys
-
-# [설명]
-# echo 뒤의 따옴표(" ") 안에 동료가 준 긴 문자열 전체를 붙여넣으세요.
-# >> 기호는 "기존 내용 끝에 추가하라"는 뜻입니다. (덮어쓰기 아님)
-```
-
-**또는, 전통적인 `nano` 편집기 사용법:**
-
-```bash
-# 1. 파일 열기
-nano ~/.ssh/authorized_keys
-
-# 2. 키보드 방향키로 맨 아래 빈 줄로 이동
-
-# 3. 우클릭으로 붙여넣기 (PuTTY나 Git Bash는 우클릭이 붙여넣기임)
-# 한 줄에 키 하나씩 들어가야 합니다. 줄바꿈이 중간에 생기지 않게 주의!
-
-# 4. 저장하고 나오기
-# Ctrl + O (저장) -> Enter
-# Ctrl + X (종료)
-```
-
-### 4. 권한 최종 확인
-`authorized_keys` 파일도 아무나 수정 못 하게 막아야 합니다.
-
-```bash
-chmod 600 ~/.ssh/authorized_keys
-```
-
-이제 동료의 열쇠가 우리 집 도어락에 등록되었습니다! 🎉
+👉 **결과**: 비밀번호 로그인 ❌ / 키 로그인 ⭕
 
 ---
 
-## Step 3: 동료에게 전달 및 접속 테스트
+## 🔹 4. 공유 폴더 설정
 
-### 1. 전달
-동료에게 `colleague_key` 파일(확장자 없는 파일)을 안전하게 전달합니다. (슬랙 DM, USB 등)
+공동 작업을 위한 폴더를 만들고 권한을 설정합니다.
 
-### 2. 동료가 접속하는 법
-동료는 받은 키 파일을 자신의 컴퓨터 `C:\Users\사용자\.ssh\` 폴더 등에 넣고, 아래 명령어로 접속합니다.
+### ① 공유 폴더 새로 만들기
 
-```powershell
-# 권한 문제 방지 (리눅스/맥의 경우)
-# chmod 400 colleague_key 
-
-ssh -i "path/to/colleague_key" ubuntu@123.456.789.10
+```bash
+sudo mkdir /apps
 ```
 
-> [!TIP]
-> **가장 추천하는 방법**: 보안을 위해, 사실 **Step 1**은 동료가 직접 자기 컴퓨터에서 하고, **`colleague_key.pub` 파일만 달라고 해서** 님이 **Step 2**만 해주는 것이 가장 좋습니다. (비밀키가 인터넷을 돌아다니지 않으니까요!)
+### ② 소유권을 공동으로 바꾸기 (가장 단순한 방법)
+
+가장 단순한 방법으로, 두 사용자 모두 `sudo` 권한이 있을 때 유용합니다.
+
+```bash
+# /apps 와 그 안의 모든 파일/폴더의 소유자: ubuntu, 그룹: ubuntu
+sudo chown -R ubuntu:ubuntu /apps
+
+# /apps 전체 권한 설정 (그룹 멤버에게 쓰기 권한 부여)
+sudo chmod -R 775 /apps
+```
+
+> **참고**: `chown`은 파일/폴더의 소유자(user)와 소유 그룹(group)을 바꾸는 명령어이며, `-R` 옵션은 하위 폴더와 파일까지 모두(재귀적으로) 적용한다는 의미입니다.
