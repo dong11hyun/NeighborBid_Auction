@@ -1,0 +1,516 @@
+# 📘 0. 예상되는 문제점 및 예방법
+
+> **목적**: 다중 프로젝트 EC2 운영 시 자주 겪는 문제와 해결책
+
+---
+
+## 1. Docker 격리 원리 - 핵심 답변
+
+### ✅ 각 프로젝트마다 Docker를 띄울 수 있나요?
+
+**네, 가능합니다!** 각 프로젝트는 완전히 독립된 Docker 컨테이너에서 실행됩니다.
+
+```
+EC2 인스턴스
+├── Project 1 (docker-compose.yml)
+│   ├── project1-app (Django)
+│   └── project1-db (PostgreSQL)
+│
+├── Project 2 (docker-compose.yml)
+│   ├── project2-app (FastAPI)
+│   └── project2-db (PostgreSQL)  ← 완전히 다른 컨테이너!
+│
+├── Project 3 ...
+└── ...
+```
+
+### ✅ PostgreSQL은 어떻게 구분되나요?
+
+**각 프로젝트마다 별도의 PostgreSQL 컨테이너가 실행됩니다.**
+
+```yaml
+# Project 1의 docker-compose.yml
+services:
+  db:
+    image: postgres:15
+    container_name: project1-db  # ← 고유 이름
+    volumes:
+      - project1_postgres:/var/lib/postgresql/data  # ← 고유 볼륨
+
+# Project 2의 docker-compose.yml  
+services:
+  db:
+    image: postgres:15
+    container_name: project2-db  # ← 다른 이름!
+    volumes:
+      - project2_postgres:/var/lib/postgresql/data  # ← 다른 볼륨!
+```
+
+**왜 겹치지 않는가?**
+
+| 구분 요소 | 예시 | 역할 |
+|----------|------|------|
+| 컨테이너 이름 | `project1-db`, `project2-db` | 컨테이너 식별자 |
+| 볼륨 이름 | `project1_postgres`, `project2_postgres` | 데이터 저장 위치 분리 |
+| 네트워크 | `project1-internal`, `project2-internal` | 내부 통신 격리 |
+
+### ✅ .env 파일도 겹치지 않나요?
+
+**각 프로젝트 폴더에 개별 .env 파일**이 있으므로 절대 겹치지 않습니다.
+
+```
+~/projects/
+├── project1-neighborbid/
+│   ├── docker-compose.yml
+│   └── .env              ← Project 1 전용
+│
+├── project2-fastapi/
+│   ├── docker-compose.yml
+│   └── .env              ← Project 2 전용 (완전 별개 파일)
+│
+└── project3/
+    └── .env              ← Project 3 전용
+```
+
+**각 .env 예시:**
+
+```bash
+# ~/projects/project1-neighborbid/.env
+POSTGRES_DB=neighborbid_db
+POSTGRES_USER=project1_user
+POSTGRES_PASSWORD=project1_secret
+APP_PORT=8001
+
+
+# ~/projects/project2-fastapi/.env
+POSTGRES_DB=fastapi_db
+POSTGRES_USER=project2_user
+POSTGRES_PASSWORD=project2_secret
+APP_PORT=8002
+```
+
+---
+
+## 2. 🚀 배포 전략: Git Clone vs Docker Registry
+
+### ⭐ 결론: Git Clone 방식 권장 (주니어 포트폴리오 목적)
+
+| 방법 | 설명 | 권장 |
+|------|------|------|
+| **Git Clone** | 소스코드 전체를 서버에 복제 후 빌드 | ✅ **권장** |
+| **Docker Registry** | 이미지를 Docker Hub에 푸시 후 서버에서 Pull | ⚠️ 복잡함 |
+
+| 방법 | 권장 | 이유 |
+|------|------|------|
+| **Git Clone** | ✅ 권장 | 간단, 비용 없음, 수정 편리, 학습에 좋음 |
+| **Docker Registry** | ⚠️ 복잡 | Private 이미지 유료, CI/CD 필요 시에만 |
+
+### 📌 Git Clone 방식 (권장)
+
+```bash
+# 서버에서 프로젝트 복제
+cd ~/projects
+git clone git@github.com:username/project1.git project1-neighborbid
+
+# 해당 폴더로 이동 후 Docker 빌드 & 실행
+cd project1-neighborbid
+docker compose up -d --build
+```
+
+**장점**:
+1. **간단함**: Git Pull 후 바로 빌드/실행
+2. **수정 편리**: 서버에서 직접 코드 수정 가능
+3. **비용 없음**: Docker Hub 유료 플랜 불필요
+4. **학습**: 빌드 과정 이해에 도움
+
+**폴더 구조**:
+```
+~/projects/project1-neighborbid/
+├── app/                    # 소스 코드
+│   ├── Dockerfile         # 빌드 설정
+│   └── ...
+├── docker-compose.yml     # Docker 구성
+├── .env                   # 환경 변수 (Git에 올리지 않음!)
+└── .git/                  # Git 저장소
+```
+
+### 📌 Docker Registry 방식 (대규모 팀/CI-CD)
+
+```bash
+# 로컬에서 빌드 후 푸시
+docker build -t username/project1:latest .
+docker push username/project1:latest
+
+# 서버에서 Pull
+docker pull username/project1:latest
+docker compose up -d
+```
+
+**장점**: 빌드 시간 절약, CI/CD 연동 용이
+**단점**: Private 이미지는 유료, 설정 복잡
+
+### ⚠️ Git Clone 시 주의사항
+
+1. **`.env` 파일은 Git에 올리지 마세요!**
+   ```bash
+   # .gitignore에 추가
+   .env
+   .env.local
+   *.pem
+   ```
+
+2. **`.env.example` 파일로 템플릿 제공**
+   ```bash
+   # .env.example (Git에 올림)
+   POSTGRES_DB=your_db_name
+   POSTGRES_USER=your_user
+   POSTGRES_PASSWORD=change_this_password
+   SECRET_KEY=generate_new_key
+   ```
+
+3. **서버에서 `.env` 직접 생성**
+   ```bash
+   cd ~/projects/project1-neighborbid
+   cp .env.example .env
+   vim .env  # 실제 값 입력
+   ```
+
+### 📋 배포 워크플로우 (Git Clone)
+
+```
+[개발 PC]                    [EC2 서버]
+    │                            │
+    ├── 코드 수정               │
+    ├── git push                │
+    │                            │
+    │         SSH 접속 ─────────┤
+    │                            ├── cd ~/projects/project1
+    │                            ├── git pull
+    │                            ├── docker compose down
+    │                            └── docker compose up -d --build
+```
+
+**업데이트 스크립트 예시** (`~/update-project1.sh`):
+```bash
+#!/bin/bash
+cd ~/projects/project1-neighborbid
+echo "Pulling latest code..."
+git pull origin main
+echo "Rebuilding containers..."
+docker compose down
+docker compose up -d --build
+echo "✅ Update complete!"
+docker ps | grep project1
+```
+
+---
+
+## 3. 예상되는 문제점 및 예방법
+
+### 🚨 문제 1: 포트 충돌
+
+**증상**: `Bind for 0.0.0.0:8000 failed: port is already allocated`
+
+**원인**: 두 프로젝트가 같은 포트 사용
+
+**예방법**:
+```yaml
+# 각 프로젝트에 다른 포트 할당
+# Project 1
+ports:
+  - "8001:8000"
+
+# Project 2
+ports:
+  - "8002:8000"
+```
+
+**포트 할당 계획표**:
+| 프로젝트 | 외부 포트 | 내부 포트 |
+|----------|----------|----------|
+| Project 1 | 8001 | 8000 |
+| Project 2 | 8002 | 8000 |
+| Project 3 | 8003 | 8000 |
+| Project 4 | 8004 | 8000 |
+| Project 5 | 8005 | 8000 |
+
+---
+
+### 🚨 문제 2: 메모리 부족 (OOM Kill)
+
+**증상**: 컨테이너가 갑자기 종료됨, `docker logs`에 "Killed" 표시
+
+**원인**: 서버 RAM 초과
+
+**예방법**:
+```yaml
+# docker-compose.yml에 메모리 제한 설정
+services:
+  app:
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  opensearch:
+    environment:
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"  # Java 힙 제한
+```
+
+**모니터링**:
+```bash
+# 실시간 리소스 확인
+docker stats
+
+# 전체 메모리 확인
+free -h
+```
+
+---
+
+### 🚨 문제 3: 디스크 용량 부족
+
+**증상**: `No space left on device`
+
+**원인**: Docker 이미지, 로그, 볼륨 누적
+
+**예방법**:
+```bash
+# 정기적으로 정리 (주 1회 권장)
+docker system prune -af --volumes
+
+# 로그 크기 제한 (docker-compose.yml)
+services:
+  app:
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+```
+
+**디스크 확인**:
+```bash
+df -h
+docker system df
+```
+
+---
+
+### 🚨 문제 4: 컨테이너 이름 충돌
+
+**증상**: `Conflict. The container name "/db" is already in use`
+
+**원인**: 다른 프로젝트에서 같은 컨테이너 이름 사용
+
+**예방법**:
+```yaml
+# 항상 프로젝트 prefix 붙이기
+services:
+  app:
+    container_name: project1-app  # ✅ Good
+  db:
+    container_name: project1-db   # ✅ Good
+```
+
+---
+
+### 🚨 문제 5: DB 연결 실패
+
+**증상**: `connection refused`, `could not connect to server`
+
+**원인**: 앱이 DB보다 먼저 시작됨
+
+**예방법**:
+```yaml
+services:
+  app:
+    depends_on:
+      db:
+        condition: service_healthy  # 건강 체크 후 시작
+
+  db:
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+```
+
+---
+
+### 🚨 문제 6: Nginx 502 Bad Gateway
+
+**증상**: 브라우저에서 502 에러
+
+**원인**: 
+1. 백엔드 앱 컨테이너 미실행
+2. upstream 이름 오류
+3. 네트워크 연결 안됨
+
+**진단 방법**:
+```bash
+# 1. 백엔드 컨테이너 상태 확인
+docker ps | grep project1
+
+# 2. Nginx 에러 로그 확인
+docker logs portfolio-nginx
+
+# 3. 네트워크 연결 확인
+docker network inspect portfolio-network
+```
+
+**예방법**:
+```yaml
+# 모든 앱 컨테이너가 portfolio-network에 연결되어 있는지 확인
+networks:
+  portfolio-network:
+    external: true
+```
+
+---
+
+### 🚨 문제 7: SSL 인증서 갱신 실패
+
+**증상**: HTTPS 접속 불가, 인증서 만료
+
+**원인**: Let's Encrypt 인증서 90일 만료
+
+**예방법**:
+```bash
+# 자동 갱신 크론잡 설정
+sudo crontab -e
+
+# 매주 월요일 새벽 3시 자동 갱신
+0 3 * * 1 certbot renew --quiet && docker exec portfolio-nginx nginx -s reload
+```
+
+---
+
+### 🚨 문제 8: 볼륨 데이터 손실
+
+**증상**: 컨테이너 재시작 후 데이터 사라짐
+
+**원인**: 볼륨 설정 누락
+
+**예방법**:
+```yaml
+# 반드시 named volume 사용
+volumes:
+  - postgres_data:/var/lib/postgresql/data  # ✅ Named volume
+
+# 절대 이렇게 하지 마세요
+# - ./data:/var/lib/postgresql/data  # ⚠️ 권한 문제 발생 가능
+```
+
+**백업 스크립트**:
+```bash
+#!/bin/bash
+# ~/backup.sh
+DATE=$(date +%Y%m%d)
+docker exec project1-db pg_dump -U postgres dbname > ~/backups/project1_$DATE.sql
+```
+
+---
+
+### 🚨 문제 9: 정적 파일 404
+
+**증상**: CSS/JS 파일 로딩 실패
+
+**원인**: Nginx가 정적 파일 위치를 모름
+
+**예방법**:
+```yaml
+# Django collectstatic 실행
+services:
+  app:
+    command: >
+      sh -c "python manage.py collectstatic --noinput &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000"
+
+# Nginx에서 정적 파일 직접 서빙
+location /project1/static/ {
+    alias /usr/share/nginx/html/project1/static/;
+}
+```
+
+---
+
+### 🚨 문제 10: 서버 재부팅 후 컨테이너 미시작
+
+**증상**: EC2 재시작 후 서비스 접속 불가
+
+**원인**: Docker 컨테이너 자동 시작 설정 누락
+
+**예방법**:
+```yaml
+# 모든 서비스에 restart 정책 추가
+services:
+  app:
+    restart: unless-stopped
+
+  db:
+    restart: unless-stopped
+```
+
+---
+
+## 3. 🛠️ 종합 체크리스트
+
+### 배포 전 확인
+
+- [ ] 각 프로젝트 `.env` 파일 존재 및 값 설정
+- [ ] 모든 컨테이너 이름에 프로젝트 prefix 있음
+- [ ] 포트 충돌 없음 (8001, 8002, 8003...)
+- [ ] `restart: unless-stopped` 설정됨
+- [ ] `portfolio-network` 연결됨
+- [ ] 볼륨 이름 고유함
+
+### 배포 후 확인
+
+```bash
+# 전체 상태 점검 스크립트
+#!/bin/bash
+echo "=== Docker 컨테이너 상태 ==="
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+echo -e "\n=== 메모리 사용량 ==="
+free -h
+
+echo -e "\n=== 디스크 사용량 ==="
+df -h /
+
+echo -e "\n=== 각 프로젝트 헬스체크 ==="
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/health && echo " - Project 1 OK"
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8002/health && echo " - Project 2 OK"
+```
+
+---
+
+## 4. 📊 요약 다이어그램
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        EC2 인스턴스                              │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │                  Docker Engine                           │    │
+│  │                                                          │    │
+│  │  ┌──────────────────┐  ┌──────────────────┐             │    │
+│  │  │   Project 1      │  │   Project 2      │  ...        │    │
+│  │  │  ┌──────────┐    │  │  ┌──────────┐    │             │    │
+│  │  │  │ app:8001 │    │  │  │ app:8002 │    │             │    │
+│  │  │  └──────────┘    │  │  └──────────┘    │             │    │
+│  │  │  ┌──────────┐    │  │  ┌──────────┐    │             │    │
+│  │  │  │ db       │    │  │  │ db       │    │  격리됨!    │    │
+│  │  │  └──────────┘    │  │  └──────────┘    │             │    │
+│  │  │  ┌──────────┐    │  │  ┌──────────┐    │             │    │
+│  │  │  │ .env     │    │  │  │ .env     │    │  개별 파일! │    │
+│  │  │  └──────────┘    │  │  └──────────┘    │             │    │
+│  │  │  ┌──────────┐    │  │  ┌──────────┐    │             │    │
+│  │  │  │ volume   │    │  │  │ volume   │    │  개별 저장! │    │
+│  │  │  └──────────┘    │  │  └──────────┘    │             │    │
+│  │  └──────────────────┘  └──────────────────┘             │    │
+│  └─────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+```
