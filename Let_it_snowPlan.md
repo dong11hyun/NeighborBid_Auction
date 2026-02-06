@@ -37,6 +37,10 @@ docker-compose -f docker-compose.prod.yml up -d web nginx
 3. 다시 클릭하면 눈 효과 OFF
 4. **설정은 LocalStorage에 저장** → 페이지 새로고침해도 유지됨
 
+`git pull origin main`
+`docker compose -f docker-compose.prod.yml exec web python manage.py collectstatic --noinput`
+> 이걸로 정적파일을 모으고 복사 수동으로 해준다!! 명령어 입력
+
 ---
 
 ## 기술 구현
