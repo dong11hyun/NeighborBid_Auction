@@ -8,12 +8,12 @@
     'use strict';
 
     const config = {
-        maxFlakes: 400,
+        maxFlakes: 600,
         minSize: 2,
         maxSize: 5,
         minSpeed: 1,
         maxSpeed: 3,
-        wind: 0.5,
+        wind: 1,
         color: 'rgba(255, 255, 255, 0.9)'
     };
 
