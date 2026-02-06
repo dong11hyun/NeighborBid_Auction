@@ -8,7 +8,7 @@
     'use strict';
 
     const config = {
-        maxFlakes: 200,
+        maxFlakes: 400,
         minSize: 2,
         maxSize: 5,
         minSpeed: 1,
@@ -171,9 +171,9 @@
             });
         }
 
-        // LocalStorage에서 설정 불러오기
+        // LocalStorage에서 설정 불러오기 (기본값: ON)
         const snowEnabled = localStorage.getItem('snowEnabled');
-        if (snowEnabled === 'true') {
+        if (snowEnabled !== 'false') {
             startSnow();
         }
     }
