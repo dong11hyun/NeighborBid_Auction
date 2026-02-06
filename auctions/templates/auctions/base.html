@@ -32,7 +32,7 @@
                     value="{{ request.GET.q }}">
                 <button class="btn btn-outline-light" type="submit">🔍</button>
             </form>
-            <div class="d-flex text-white">
+            <div class="d-flex text-white align-items-center">
                 {% if user.is_authenticated %}
                 <span class="me-3">👤 {{ user.username }} (신용도: {{ user.reputation_score }})</span>
                 <span class="me-3">💰 {{ user.wallet.balance }}원</span>
@@ -40,11 +40,14 @@
                 <a href="{% url 'auction_create' %}" class="btn btn-sm btn-warning fw-bold me-2">+ 경매 등록</a>
                 <a href="{% url 'mypage' %}" class="btn btn-sm btn-light me-2">마이페이지</a>
 
+                <button id="snow-toggle" class="btn btn-sm btn-outline-info me-2" title="눈 효과">❄️</button>
+
                 <form action="{% url 'logout' %}" method="post" class="d-inline">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-sm btn-outline-light">로그아웃</button>
                 </form>
                 {% else %}
+                <button id="snow-toggle" class="btn btn-sm btn-outline-info me-2" title="눈 효과">❄️</button>
                 <a href="{% url 'login' %}" class="btn btn-sm btn-outline-light me-2">로그인</a>
                 <a href="{% url 'signup' %}" class="btn btn-sm btn-warning">회원가입</a>
                 {% endif %}
@@ -65,8 +68,7 @@
         {% endblock %}
     </div>
 
-    <!-- Snow Effect Toggle Button -->
-    <button id="snow-toggle" title="눈 효과 켜기">❄️</button>
+    <!-- Snow Canvas will be added by JavaScript -->
 
     <!-- Snow Effect Script -->
     <script src="{% static 'js/snow.js' %}"></script>
